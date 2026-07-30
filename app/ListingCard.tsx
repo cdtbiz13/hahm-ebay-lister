@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SIZE_REQUIRED_CATEGORIES } from "@/lib/categories";
+import { normalizePrice } from "@/lib/pricing";
 import type { ItemGroup, ListingResult, Photo } from "@/lib/types";
 
 const TITLE_LIMIT = 80;
@@ -174,6 +175,15 @@ export function ListingCard({
                         e.target.value === "" ? "" : Number(e.target.value),
                     })
                   }
+                  // Snap to the house .89 ending once the seller is done typing,
+                  // so the field matches what actually publishes to eBay. An
+                  // empty field stays empty.
+                  onBlur={(e) => {
+                    const snapped = normalizePrice(e.target.value);
+                    if (snapped !== undefined) {
+                      onEdit(group.id, { suggested_price: snapped });
+                    }
+                  }}
                 />
               </div>
             </div>

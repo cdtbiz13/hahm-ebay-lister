@@ -9,6 +9,7 @@ import {
 } from "@/lib/prompts";
 import { toImageBlock, type ImageBlock } from "@/lib/images";
 import { resolveModel } from "@/lib/models";
+import { normalizePrice } from "@/lib/pricing";
 import type { AnalyzeRequestBody, ListingResult } from "@/lib/types";
 
 // Analysis can take 20-40s for a multi-photo item. Give it room.
@@ -148,6 +149,10 @@ export async function POST(req: NextRequest) {
         });
         const listing = parseModelJson<ListingResult>(firstText(resp));
         listing.item_profile = profile;
+        // The prompt asks for a .89 ending, but don't trust the model to comply —
+        // snap it here so the UI, exports, and eBay all show the same price.
+        const price = normalizePrice(listing.suggested_price);
+        if (price !== undefined) listing.suggested_price = price;
         return NextResponse.json({ ok: true, listing });
       } catch (err) {
         const fatal = anthropicAuthError(err);
