@@ -23,6 +23,7 @@ import {
 import { clipAspectValue, matchAllowed, canonicalizeAspectKeys } from "./aspects";
 import { fillRecommendedAspects } from "./aspectFill";
 import { APPAREL_CATEGORIES, PANTS_CATEGORIES } from "@/lib/categories";
+import { normalizePrice } from "@/lib/pricing";
 import type { ListingResult } from "@/lib/types";
 
 // ── Constants (from the Python script) ───────────────────────────────────────
@@ -190,20 +191,13 @@ async function ebayRequest(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Round a price UP to the next .89 ending (never down, so we never undercut
-// the buffered minimum). e.g. 24.00 → 24.89, 24.90 → 25.89, 24.89 → 24.89.
-function roundUpTo89(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`Invalid price: ${value}`);
-  }
+// Last-resort price when the listing carries no usable one, so a draft can still
+// be created and the seller can correct it in Seller Hub.
+const DEFAULT_PRICE = 29.89;
 
-  return Number((Math.floor(value) + 0.89).toFixed(2));
-}
-
+// Prices always publish with the house .89 ending (see lib/pricing.ts).
 function computeBufferedPrice(raw: number | string | undefined): number {
-  let base = typeof raw === "string" ? parseFloat(raw) : raw ?? 0;
-  if (!base || Number.isNaN(base) || base <= 0) base = 29.99;
-return roundUpTo89(base);
+  return normalizePrice(raw) ?? DEFAULT_PRICE;
 }
 
 // eBay's CALCULATED-shipping business policies REQUIRE package weight (and

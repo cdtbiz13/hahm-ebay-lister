@@ -206,7 +206,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
 
 For title: Make it read like a strong live eBay title, using the most searchable nouns, brand, model, type, material, size, era, character, theme, or pattern when supported by the photos.
 For condition: Do NOT use LIKE_NEW. If an item is near mint but preowned, use EXCELLENT instead.
-For suggested_price: Price realistically for what this exact item sells for on eBay. Be honest.
+For suggested_price: Price realistically for what this exact item sells for on eBay. Be honest. Always end the price in .89 — round to the nearest whole dollar plus .89 (e.g. 24.89, 39.89, 125.89). Never use .99, .95, or a round number.
 For item_specifics: Only include fields relevant to this item. Leave any field blank ("") if not applicable or unknown — do NOT guess. Omit all section-label keys (the ones that look like "--- TOPS ---") from your response.
 For category/category_hint: The broad category can be approximate, but the category_hint should help eBay find the exact leaf category for whatever type of item this is.
 For all item types: include as many accurate specifics as the photos support, even for non-clothing items such as collectibles, media, home decor, toys, tools, sporting goods, art, kitchenware, and electronics accessories.`;
