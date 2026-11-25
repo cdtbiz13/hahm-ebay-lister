@@ -598,7 +598,22 @@ async function uploadPhoto(
   });
   const text = await resp.text();
   const m = text.match(/<FullURL>([^<]+)<\/FullURL>/);
-  return m ? m[1] : null;
+  if (m) return m[1];
+  // Keep eBay's reason so the seller sees it instead of a generic failure.
+  const msg =
+    (text.match(/<LongMessage>([\s\S]*?)<\/LongMessage>/) || [])[1] ||
+    (text.match(/<ShortMessage>([\s\S]*?)<\/ShortMessage>/) || [])[1] ||
+    `HTTP ${resp.status}`;
+  const code = (text.match(/<ErrorCode>(\d+)<\/ErrorCode>/) || [])[1];
+  lastPhotoError = `${msg.trim()}${code ? ` (${code})` : ""}`;
+  console.error(`[ebay/photos] upload failed ${name}: http=${resp.status} ${lastPhotoError} ${text.slice(0, 600)}`);
+  return null;
+}
+
+// The most recent photo-upload failure reason from eBay, for error messages.
+let lastPhotoError = "";
+export function photoUploadError(): string {
+  return lastPhotoError;
 }
 
 // ── Policies & location ──────────────────────────────────────────────────────
@@ -852,7 +867,11 @@ export async function publishListing(
   // 1. Upload photos → EPS URLs (parallel, order preserved).
   const photoUrls = await uploadPhotos(accessToken, input.images.slice(0, 12), sku);
   if (photoUrls.length === 0) {
-    return { success: false, sku, error: "Could not upload any photos to eBay." };
+    return {
+      success: false,
+      sku,
+      error: `Could not upload any photos to eBay${lastPhotoError ? `: ${lastPhotoError}` : "."}`,
+    };
   }
 
   // 2. Inventory item.

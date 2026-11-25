@@ -19,6 +19,7 @@ import {
   buildAspects,
   conditionIdsForGrade,
   normalizeConditionInput,
+  photoUploadError,
   reconcileAspects,
   resolveCategory,
   uploadPhotos,
@@ -201,7 +202,8 @@ export async function scheduleListing(
   // 2. Photos → eBay Picture Services.
   const photoUrls = await uploadPhotos(accessToken, input.images.slice(0, 12), sku.replace(/\s+/g, "-"));
   if (!photoUrls.length) {
-    return { success: false, sku, error: "Could not upload any photos to eBay." };
+    const why = photoUploadError();
+    return { success: false, sku, error: `Could not upload any photos to eBay${why ? `: ${why}` : "."}` };
   }
 
   // 3. Category, specifics, condition — same logic as the Inventory flow.
