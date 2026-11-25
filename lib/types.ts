@@ -20,7 +20,27 @@ export interface ListingResult {
   key_features?: string[];
   item_specifics?: Record<string, string>;
   item_profile?: string;
+
+  // ── Seller-entered fields for scheduled listings ───────────────────────────
+  // The seller's own ID (clothing SKU sticker like "BQ 2726", or a temp ID like
+  // "1124-01"). Sent to eBay as Custom label so Flyp and the tracker can match.
+  custom_label?: string;
+  // The seller's eBay price from their own sold-comp research. Required to
+  // schedule; suggested_price (the AI's guess) is never used for scheduling.
+  list_price?: number | string;
+  // What the seller paid, for the minimum-price warning. Optional.
+  cost?: number | string;
+  // Package group from the seller's weight table, or "custom" to enter it.
+  package_group?: PackageGroup;
+  package_weight_oz?: number | string;
+  package_length_in?: number | string;
+  package_width_in?: number | string;
+  package_height_in?: number | string;
+  // When the listing should go live, as an ISO timestamp (UTC).
+  schedule_at?: string;
 }
+
+export type PackageGroup = "light" | "heavy" | "custom";
 
 export interface AnalyzeRequestBody {
   // Browser-resized JPEG data URLs or raw base64 strings.
@@ -64,11 +84,13 @@ export type PostStatus =
   | "draft-saved"
   // Published live and enrolled in a Promoted Listings campaign.
   | "published"
+  // Scheduled on eBay (shows in Seller Hub → Listings → Scheduled).
+  | "scheduled"
   | "error";
 
 // Which action is in flight / produced the current state. Both buttons share
 // postStatus, so without this each one can't tell whether the spinner is its own.
-export type PostMode = "draft" | "promote";
+export type PostMode = "draft" | "promote" | "schedule";
 
 export interface ItemGroup {
   id: string;
@@ -89,4 +111,9 @@ export interface ItemGroup {
   // so promoted=false with a reason is a distinct outcome from success.
   promoted?: boolean;
   promoteError?: string;
+
+  // Schedule-only. When the listing goes live (ISO), and the listing fees eBay
+  // quoted for it (should be $0.00).
+  scheduledFor?: string;
+  listingFees?: number;
 }

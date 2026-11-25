@@ -9,6 +9,7 @@ import { EbayConnect } from "./EbayConnect";
 import { ModelSelector } from "./ModelSelector";
 import { ReviewBoard } from "./ReviewBoard";
 import { ListingsView } from "./ListingsView";
+import { defaultScheduleAt } from "./ListingCard";
 import type {
   AnalyzeResponse,
   ItemGroup,
@@ -33,6 +34,7 @@ const MAX_PUBLISH_PHOTOS = 12;
 const POST_ENDPOINTS: Record<PostMode, string> = {
   draft: "/api/ebay/publish",
   promote: "/api/ebay/publish-and-promote",
+  schedule: "/api/ebay/schedule",
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -432,6 +434,9 @@ export default function Home() {
       try {
         let data: {
           success: boolean;
+          itemId?: string;
+          scheduledFor?: string;
+          listingFees?: number;
           offerId?: string;
           listingId?: string;
           error?: string;
@@ -444,7 +449,10 @@ export default function Home() {
         for (let attempt = 0; ; attempt++) {
           const res = await apiPost(POST_ENDPOINTS[mode], {
             sku: group.sku,
-            listing: group.listing,
+            listing:
+              mode === "schedule"
+                ? { ...group.listing, schedule_at: group.listing.schedule_at || defaultScheduleAt() }
+                : group.listing,
             images,
           });
 
@@ -469,6 +477,28 @@ export default function Home() {
           data.offerId
         ) {
           data = { success: true, offerId: data.offerId, listingId: "" };
+        }
+
+        if (mode === "schedule") {
+          if (!data?.success || !data.itemId) {
+            throw new Error(data?.error || "eBay did not return an item ID.");
+          }
+          const sched = data;
+          setGroups((prev) =>
+            prev.map((g) =>
+              g.id === groupId
+                ? {
+                    ...g,
+                    postStatus: "scheduled",
+                    listingId: sched.itemId,
+                    scheduledFor: sched.scheduledFor,
+                    listingFees: sched.listingFees,
+                    postError: undefined,
+                  }
+                : g
+            )
+          );
+          return;
         }
 
         if (!data?.success || !data.offerId) {
@@ -515,14 +545,20 @@ export default function Home() {
     [postGroup]
   );
 
+  const scheduleGroup = useCallback(
+    (groupId: string) => postGroup(groupId, "schedule"),
+    [postGroup]
+  );
+
   const postAll = async () => {
     const ready = groups
       .filter(
         (g) =>
           g.status === "done" &&
           g.postStatus !== "draft-saved" &&
-          // Already live — re-posting would create a second listing.
-          g.postStatus !== "published"
+          // Already live or scheduled — re-posting would create a second listing.
+          g.postStatus !== "published" &&
+          g.postStatus !== "scheduled"
       )
       .map((g) => g.id);
 
@@ -707,13 +743,14 @@ export default function Home() {
           onPost={postGroup}
           onPostAll={postAll}
           onPublishAndPromote={publishAndPromoteGroup}
+          onSchedule={scheduleGroup}
           onBack={() => setStep("review")}
         />
       )}
 
       <p className="footnote">
   Your photos are sent securely to sort and write listings, and are not
-  stored. Listings are saved to eBay as drafts.
+  stored. Listings are saved to eBay as drafts or scheduled.
       </p>
     </main>
   );

@@ -3,7 +3,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { SIZE_REQUIRED_CATEGORIES } from "@/lib/categories";
 import { normalizePrice } from "@/lib/pricing";
-import type { ItemGroup, ListingResult, Photo } from "@/lib/types";
+import {
+  PACKAGE_GROUP_LABELS,
+  guessPackageGroup,
+  minimumPrice,
+} from "@/lib/package";
+import type { ItemGroup, ListingResult, PackageGroup, Photo } from "@/lib/types";
+
+// Default go-live time for scheduling: 7 days out, on the hour.
+export function defaultScheduleAt(): string {
+  const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  d.setMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
+// ISO ↔ <input type="datetime-local"> (which works in local time).
+function isoToLocalInput(iso: string | undefined): string {
+  const d = new Date(iso || "");
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(v: string): string {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
+function toNum(v: unknown): number {
+  const n = typeof v === "string" ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
 
 const TITLE_LIMIT = 80;
 
@@ -61,6 +91,7 @@ interface ListingCardProps {
   onRetry: (groupId: string) => void;
   onPost: (groupId: string) => void;
   onPublishAndPromote: (groupId: string) => void;
+  onSchedule: (groupId: string) => void;
 }
 
 export function ListingCard({
@@ -71,6 +102,7 @@ export function ListingCard({
   onRetry,
   onPost,
   onPublishAndPromote,
+  onSchedule,
 }: ListingCardProps) {
   const [open, setOpen] = useState(true);
   const listing = group.listing;
@@ -267,8 +299,146 @@ export function ListingCard({
             </details>
           )}
 
+          {/* Scheduling: the seller's own ID, price, package and go-live time */}
+          {(() => {
+            const pkgGroup: PackageGroup = listing.package_group || guessPackageGroup(listing);
+            const price = toNum(listing.list_price);
+            const cost = toNum(listing.cost);
+            const floor = cost > 0 ? minimumPrice(cost) : NaN;
+            const belowFloor = price > 0 && floor > 0 && price < floor;
+            return (
+              <div className="schedule-fields">
+                <div className="meta-row">
+                  <div className={`stat editable${listing.custom_label?.trim() ? "" : " needs-attention"}`}>
+                    <label className="k" htmlFor={`label-${group.id}`}>Your SKU / temp ID</label>
+                    <input
+                      id={`label-${group.id}`}
+                      type="text"
+                      value={listing.custom_label ?? ""}
+                      placeholder="BQ 2726 or 1124-01"
+                      onChange={(e) => onEdit(group.id, { custom_label: e.target.value })}
+                    />
+                  </div>
+                  <div className={`stat editable${price > 0 ? "" : " needs-attention"}`}>
+                    <label className="k" htmlFor={`lp-${group.id}`}>Your eBay price</label>
+                    <div className="price-input">
+                      <span aria-hidden="true">$</span>
+                      <input
+                        id={`lp-${group.id}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={listing.list_price ?? ""}
+                        placeholder="24.89"
+                        onChange={(e) =>
+                          onEdit(group.id, {
+                            list_price: e.target.value === "" ? "" : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="stat editable">
+                    <label className="k" htmlFor={`cost-${group.id}`}>Cost (optional)</label>
+                    <div className="price-input">
+                      <span aria-hidden="true">$</span>
+                      <input
+                        id={`cost-${group.id}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={listing.cost ?? ""}
+                        onChange={(e) =>
+                          onEdit(group.id, { cost: e.target.value === "" ? "" : Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="post-hint">
+                  AI price guess (not from sold comps): {formatPrice(listing.suggested_price)}
+                  {floor > 0 && <> · Your minimum for this cost: ${floor.toFixed(2)}</>}
+                </p>
+                {belowFloor && (
+                  <p className="size-warning" role="alert">
+                    ⚠️ ${price.toFixed(2)} is below your minimum of ${floor.toFixed(2)} for a
+                    ${cost.toFixed(2)} item.
+                  </p>
+                )}
+                <div className="meta-row">
+                  <div className="stat editable">
+                    <label className="k" htmlFor={`pkg-${group.id}`}>Package</label>
+                    <select
+                      id={`pkg-${group.id}`}
+                      value={pkgGroup}
+                      onChange={(e) => onEdit(group.id, { package_group: e.target.value as PackageGroup })}
+                    >
+                      {(Object.keys(PACKAGE_GROUP_LABELS) as PackageGroup[]).map((g) => (
+                        <option key={g} value={g}>
+                          {PACKAGE_GROUP_LABELS[g]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {pkgGroup === "custom" &&
+                    ([
+                      ["package_weight_oz", "Weight (oz)"],
+                      ["package_length_in", "Length (in)"],
+                      ["package_width_in", "Width (in)"],
+                      ["package_height_in", "Height (in)"],
+                    ] as const).map(([key, label]) => (
+                      <div
+                        key={key}
+                        className={`stat editable${toNum(listing[key]) > 0 ? "" : " needs-attention"}`}
+                      >
+                        <label className="k" htmlFor={`${key}-${group.id}`}>{label}</label>
+                        <input
+                          id={`${key}-${group.id}`}
+                          type="number"
+                          min="0"
+                          step="1"
+                          inputMode="decimal"
+                          value={listing[key] ?? ""}
+                          onChange={(e) =>
+                            onEdit(group.id, {
+                              [key]: e.target.value === "" ? "" : Number(e.target.value),
+                            } as Partial<ListingResult>)
+                          }
+                        />
+                      </div>
+                    ))}
+                  <div className="stat editable">
+                    <label className="k" htmlFor={`when-${group.id}`}>Goes live</label>
+                    <input
+                      id={`when-${group.id}`}
+                      type="datetime-local"
+                      value={isoToLocalInput(listing.schedule_at || defaultScheduleAt())}
+                      onChange={(e) => onEdit(group.id, { schedule_at: localInputToIso(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* eBay posting */}
-          {group.postStatus === "draft-saved" ? (
+          {group.postStatus === "scheduled" ? (
+            <p className="post-result ok">
+              📅 Scheduled on eBay for{" "}
+              {group.scheduledFor ? new Date(group.scheduledFor).toLocaleString() : "later"}
+              {typeof group.listingFees === "number" && ` · listing fees $${group.listingFees.toFixed(2)}`}
+              {" · "}review it in{" "}
+              <a
+                href="https://www.ebay.com/sh/lst/scheduled"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Seller Hub → Scheduled ↗
+              </a>
+            </p>
+          ) : group.postStatus === "draft-saved" ? (
             <p className="post-result ok">
              ✅ Saved as eBay Draft
             </p>
@@ -301,10 +471,24 @@ export function ListingCard({
                 <button
                   type="button"
                   className="btn btn-primary"
+                  onClick={() => onSchedule(group.id)}
+                  disabled={group.postStatus === "saving"}
+                >
+                  {group.postStatus === "saving" && group.postMode === "schedule" ? (
+                    <>
+                      <span className="spinner" aria-hidden="true" /> Scheduling…
+                    </>
+                  ) : (
+                    "📅 Schedule on eBay"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   onClick={() => onPost(group.id)}
                   disabled={group.postStatus === "saving"}
                 >
-                  {group.postStatus === "saving" && group.postMode !== "promote" ? (
+                  {group.postStatus === "saving" && group.postMode === "draft" ? (
                     <>
                       <span className="spinner" aria-hidden="true" /> Posting to eBay…
                     </>

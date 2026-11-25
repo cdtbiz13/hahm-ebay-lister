@@ -226,7 +226,7 @@ function defaultPackageWeightAndSize(): Record<string, unknown> {
   };
 }
 
-function normalizeConditionInput(value: string | undefined): string {
+export function normalizeConditionInput(value: string | undefined): string {
   const cleaned = (value || "GOOD")
     .trim()
     .toUpperCase()
@@ -240,7 +240,7 @@ function isApparelConditionPolicy(acceptedIds: Set<number>): boolean {
   return acceptedIds.has(2990) || acceptedIds.has(3010);
 }
 
-function conditionIdsForGrade(
+export function conditionIdsForGrade(
   grade: string,
   acceptedIds: Set<number>,
   catKey: string
@@ -285,7 +285,7 @@ function conditionCandidates(
   return out.length ? out : ["USED_GOOD"];
 }
 
-function resolveCategory(listing: ListingResult): {
+export function resolveCategory(listing: ListingResult): {
   categoryId: string;
   fallbacks: string[];
 } {
@@ -323,7 +323,7 @@ function departmentForCategory(catKey: string): string {
 }
 
 // Build the item-specifics (aspects) map from the listing.
-function buildAspects(listing: ListingResult, catKey: string): Record<string, string[]> {
+export function buildAspects(listing: ListingResult, catKey: string): Record<string, string[]> {
   const aspects: Record<string, string[]> = {};
   const put = (k: string, v: string) => {
     const val = clipAspectValue(v);
@@ -401,7 +401,7 @@ function freeTextDefault(name: string, listing: ListingResult): string {
 }
 
 // Make every REQUIRED aspect present and valid. Mutates `aspects` in place.
-function reconcileAspects(
+export function reconcileAspects(
   aspects: Record<string, string[]>,
   meta: AspectMeta[],
   listing: ListingResult,
@@ -545,7 +545,7 @@ function extractMissingAspects(r: EbayResp): string[] {
   return missing;
 }
 
-function addMissingAspects(
+export function addMissingAspects(
   aspects: Record<string, string[]>,
   missing: string[]
 ): string[] {
@@ -616,6 +616,71 @@ function pickFirstPolicy(r: EbayResp, listKey: string, idField: string): string 
   return list.length ? String(list[0][idField] || "") : "";
 }
 
+// Pick a business policy. When the seller pins one with an env var (its ID or
+// its exact name from Seller Hub → Business policies), use that one — and
+// return "" if it isn't found, so publishing stops with a clear error instead
+// of silently using the wrong policy. With no env var, fall back to the first.
+function pickPolicy(
+  r: EbayResp,
+  listKey: string,
+  idField: string,
+  pinned: string | undefined
+): string {
+  const want = String(pinned || "").trim();
+  if (!want) return pickFirstPolicy(r, listKey, idField);
+  if (!r.ok) return "";
+  const list: any[] = r.json?.[listKey] || [];
+  const hit = list.find(
+    (p) =>
+      String(p?.[idField] || "") === want ||
+      String(p?.name || "").trim().toLowerCase() === want.toLowerCase()
+  );
+  return hit ? String(hit[idField] || "") : "";
+}
+
+export interface PolicySummary {
+  type: "shipping" | "payment" | "returns";
+  id: string;
+  name: string;
+  pinned: boolean;
+}
+
+// Every business policy on the account, so the seller can see what exists and
+// which one the app will use (GET /api/ebay/policies).
+export async function listPolicies(accessToken: string): Promise<{
+  policies: PolicySummary[];
+  error?: string;
+}> {
+  const mp = `marketplace_id=${EBAY_MARKETPLACE_ID}`;
+  const [ful, pay, ret] = await Promise.all([
+    ebayRequest(accessToken, "GET", `${EBAY_ACC_BASE}/fulfillment_policy?${mp}`),
+    ebayRequest(accessToken, "GET", `${EBAY_ACC_BASE}/payment_policy?${mp}`),
+    ebayRequest(accessToken, "GET", `${EBAY_ACC_BASE}/return_policy?${mp}`),
+  ]);
+  const out: PolicySummary[] = [];
+  const add = (
+    r: EbayResp,
+    type: PolicySummary["type"],
+    listKey: string,
+    idField: string,
+    pinnedEnv: string | undefined
+  ) => {
+    const chosen = pickPolicy(r, listKey, idField, pinnedEnv);
+    for (const p of r.json?.[listKey] || []) {
+      const id = String(p?.[idField] || "");
+      out.push({ type, id, name: String(p?.name || ""), pinned: id === chosen });
+    }
+  };
+  add(ful, "shipping", "fulfillmentPolicies", "fulfillmentPolicyId", process.env.EBAY_SHIPPING_POLICY);
+  add(pay, "payment", "paymentPolicies", "paymentPolicyId", process.env.EBAY_PAYMENT_POLICY);
+  add(ret, "returns", "returnPolicies", "returnPolicyId", process.env.EBAY_RETURN_POLICY);
+  const failed = [ful, pay, ret].find((r) => !r.ok);
+  return {
+    policies: out,
+    error: failed ? publishErrorMessage("Could not read business policies", failed) : undefined,
+  };
+}
+
 // Policies and location change rarely; refetching them for every item of a
 // batch adds four eBay calls per publish. Cache per access token for 10 min.
 const setupCache = new Map<string, { setup: AccountSetup; expiresAt: number }>();
@@ -641,9 +706,9 @@ async function fetchAccountSetupUncached(accessToken: string): Promise<AccountSe
     ebayRequest(accessToken, "GET", `${EBAY_ACC_BASE}/return_policy?${mp}`),
   ]);
   return {
-    fulfillmentPolicyId: pickFirstPolicy(ful, "fulfillmentPolicies", "fulfillmentPolicyId"),
-    paymentPolicyId: pickFirstPolicy(pay, "paymentPolicies", "paymentPolicyId"),
-    returnPolicyId: pickFirstPolicy(ret, "returnPolicies", "returnPolicyId"),
+    fulfillmentPolicyId: pickPolicy(ful, "fulfillmentPolicies", "fulfillmentPolicyId", process.env.EBAY_SHIPPING_POLICY),
+    paymentPolicyId: pickPolicy(pay, "paymentPolicies", "paymentPolicyId", process.env.EBAY_PAYMENT_POLICY),
+    returnPolicyId: pickPolicy(ret, "returnPolicies", "returnPolicyId", process.env.EBAY_RETURN_POLICY),
     locationKey: await fetchOrCreateLocation(accessToken),
   };
 }
@@ -726,7 +791,7 @@ async function findPublishedOffer(
 // Upload photos with limited concurrency, preserving order. Sequential uploads
 // were the slowest part of a publish (12 photos ≈ up to a minute on their own)
 // and pushed long batches into Vercel's function timeout.
-async function uploadPhotos(
+export async function uploadPhotos(
   accessToken: string,
   images: { mediaType: string; data: string }[],
   sku: string
@@ -766,7 +831,7 @@ export async function publishListing(
       success: false,
       sku,
       error:
-        "Your eBay account is missing a business policy (payment, shipping, or returns). Set these up in eBay → Account → Business policies, then try again.",
+        "A business policy (payment, shipping, or returns) is missing, or a pinned one (EBAY_SHIPPING_POLICY / EBAY_PAYMENT_POLICY / EBAY_RETURN_POLICY) wasn't found. Check eBay → Account → Business policies and your Vercel settings, then try again.",
     };
   }
 

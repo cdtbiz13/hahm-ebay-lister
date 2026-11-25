@@ -20,6 +20,7 @@ interface ListingsViewProps {
   onRetry: (groupId: string) => void;
   onPost: (groupId: string) => void;
   onPublishAndPromote: (groupId: string) => void;
+  onSchedule: (groupId: string) => void;
   onPostAll: () => void;
   onBack: () => void;
 }
@@ -32,6 +33,7 @@ export function ListingsView({
   onRetry,
   onPost,
   onPublishAndPromote,
+  onSchedule,
   onPostAll,
   onBack,
 }: ListingsViewProps) {
@@ -139,6 +141,7 @@ export function ListingsView({
   onRetry={onRetry}
   onPost={onPost}
   onPublishAndPromote={onPublishAndPromote}
+  onSchedule={onSchedule}
 />
         ))}
       </div>
