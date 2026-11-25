@@ -272,6 +272,26 @@ export default function Home() {
     }
   };
 
+  // ── One item: skip AI sorting ───────────────────────────
+  // Every uploaded photo is one item, in upload order. No sorting call, so
+  // nothing can be split or mixed up — upload, write, review, schedule.
+  const useAsOneItem = () => {
+    if (photos.length === 0) return;
+    setError(null);
+    setSkuStart(0);
+    setGroups([
+      {
+        id: newId(),
+        sku: buildSku(binPrefix, 0),
+        name: "Item",
+        photoIds: photos.map((p) => p.id),
+        status: "idle",
+      },
+    ]);
+    setOrphanIds([]);
+    setStep("review");
+  };
+
   // ── Review edits ────────────────────────────────────────
   const rename = (groupId: string, name: string) =>
     setGroups((prev) =>
@@ -679,6 +699,14 @@ export default function Home() {
 
             <div className="result-actions" style={{ borderTop: "none", paddingTop: 0 }}>
               <ModelSelector />
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={useAsOneItem}
+                disabled={photos.length === 0 || sorting}
+              >
+                1️⃣ These photos are one item
+              </button>
               <button
                 type="button"
                 className="btn btn-primary"
