@@ -536,6 +536,7 @@ export default function Home() {
           itemId?: string;
           scheduledFor?: string;
           listingFees?: number;
+          warnings?: string[];
           offerId?: string;
           listingId?: string;
           error?: string;
@@ -607,6 +608,7 @@ export default function Home() {
                     listingId: sched.itemId,
                     scheduledFor: sched.scheduledFor,
                     listingFees: sched.listingFees,
+                    scheduleNotes: sched.warnings,
                     postError: undefined,
                   }
                 : g

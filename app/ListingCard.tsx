@@ -514,6 +514,13 @@ export function ListingCard({
               >
                 Seller Hub → Scheduled ↗
               </a>
+              {group.scheduleNotes?.length ? (
+                <ul className="post-hint">
+                  {group.scheduleNotes.map((n) => (
+                    <li key={n}>⚠️ {n}</li>
+                  ))}
+                </ul>
+              ) : null}
             </p>
           ) : group.postStatus === "draft-saved" ? (
             <p className="post-result ok">

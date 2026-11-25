@@ -21,6 +21,7 @@ import {
 } from "./taxonomy";
 import { clipAspectValue, matchAllowed, canonicalizeAspectKeys } from "./aspects";
 import { fillRecommendedAspects } from "./aspectFill";
+import { finalizeAspects, isMeasureAspect } from "./aspectTiers";
 import { APPAREL_CATEGORIES, PANTS_CATEGORIES } from "@/lib/categories";
 import { normalizePrice } from "@/lib/pricing";
 import type { ListingResult } from "@/lib/types";
@@ -552,7 +553,7 @@ export function addMissingAspects(
   for (const field of missing) {
     // Never stamp a default into a size aspect — let eBay's "missing item
     // specific" error surface so the seller supplies the real size.
-    if (isSizeAspect(field)) continue;
+    if (isSizeAspect(field) || isMeasureAspect(field)) continue;
     const def = ASPECT_DEFAULTS[field] || "Unbranded";
     aspects[field] = [def];
     added.push(`${field}=${def}`);
@@ -922,6 +923,7 @@ export async function publishListing(
   // text-only model call) so live listings stop showing "suggested" aspects.
   if (aspectMeta.length) {
     await fillRecommendedAspects(listing, aspects, aspectMeta, sku);
+    finalizeAspects(aspects, aspectMeta, listing);
   }
   const condCandidates = conditionCandidates(listing.condition, acceptedConds, catKey);
   const condition = condCandidates[0] || "USED_EXCELLENT";

@@ -123,4 +123,7 @@ export interface ItemGroup {
   // SKU / temp ID typed on the upload slot; pre-fills the listing's
   // custom_label once it's written.
   presetLabel?: string;
+
+  // Notes from scheduling (e.g. item specifics to check in Seller Hub).
+  scheduleNotes?: string[];
 }
