@@ -20,6 +20,9 @@ export interface ListingResult {
   key_features?: string[];
   item_specifics?: Record<string, string>;
   item_profile?: string;
+  // Rule Set A research strings: tight = eBay sold search, broad = Terapeak.
+  sold_search?: string;
+  terapeak_search?: string;
 
   // ── Seller-entered fields for scheduled listings ───────────────────────────
   // The seller's own ID (clothing SKU sticker like "BQ 2726", or a temp ID like

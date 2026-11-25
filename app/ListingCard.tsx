@@ -30,6 +30,17 @@ function localInputToIso(v: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
+// eBay sold-listings search for the tight string, filtered to the item's
+// condition (new vs pre-owned), and Terapeak for the broad string (90 days).
+function soldSearchUrl(q: string, condition: string | undefined): string {
+  const cond = /^NEW/.test(condition || "") ? "1000|1500" : "3000";
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=${encodeURIComponent(cond)}`;
+}
+
+function terapeakUrl(q: string): string {
+  return `https://www.ebay.com/sh/research?marketplace=EBAY-US&tabName=SOLD&dayRange=90&keywords=${encodeURIComponent(q)}`;
+}
+
 function toNum(v: unknown): number {
   const n = typeof v === "string" ? parseFloat(v) : Number(v);
   return Number.isFinite(n) ? n : NaN;
@@ -315,6 +326,54 @@ export function ListingCard({
                 ))}
               </div>
             </details>
+          )}
+
+          {/* Price research: Rule Set A search strings */}
+          {(listing.sold_search || listing.terapeak_search) && (
+            <div className="research-strings">
+              {listing.sold_search && (
+                <div className="result-field">
+                  <label>Sold search (tight)</label>
+                  <input
+                    type="text"
+                    value={listing.sold_search}
+                    onChange={(e) => onEdit(group.id, { sold_search: e.target.value })}
+                  />
+                  <div className="copy-row">
+                    <CopyButton text={listing.sold_search} label="sold search" />
+                    <a
+                      className="btn-ghost"
+                      href={soldSearchUrl(listing.sold_search, listing.condition)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      🔎 Open eBay sold search ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+              {listing.terapeak_search && (
+                <div className="result-field">
+                  <label>Terapeak search (broad)</label>
+                  <input
+                    type="text"
+                    value={listing.terapeak_search}
+                    onChange={(e) => onEdit(group.id, { terapeak_search: e.target.value })}
+                  />
+                  <div className="copy-row">
+                    <CopyButton text={listing.terapeak_search} label="Terapeak search" />
+                    <a
+                      className="btn-ghost"
+                      href={terapeakUrl(listing.terapeak_search)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      📊 Open Terapeak ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Scheduling: the seller's own ID, price, package and go-live time */}

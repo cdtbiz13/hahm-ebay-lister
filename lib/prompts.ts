@@ -116,6 +116,8 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
   "measurements": "Any measurements visible in photos, formatted clearly. Write 'See listing photos for measurements' if none visible.",
   "description": "Full eBay listing description — plain text only, no markdown.",
   "suggested_price": 0.00,
+  "sold_search": "TIGHT search string for eBay sold listings (see SEARCH STRING RULES)",
+  "terapeak_search": "BROAD search string for Terapeak (see SEARCH STRING RULES)",
   "seo_keywords": ["Up to 10 search phrases buyers would use"],
   "key_features": ["Up to 5 features"],
   "item_specifics": {
@@ -212,6 +214,11 @@ TITLE RULES (the seller's Rule Set A — follow exactly):
 • Only use words the photos support. If the size isn't visible, leave it out of the title — never guess a size.
 • No keyword stuffing, no repeated words, no filler or hype (NEW, L@@K, WOW, MUST SEE, RARE unless truly rare), no condition words (Pre-owned, Used, EUC, NWOT), no punctuation beyond what grammar needs, no quotation marks. Readable beats stuffed.
 • Example: "Gap 1969 Best Girlfriend Jeans Womens Gray Distressed Stretch Denim Size 28 Reg"
+
+SEARCH STRING RULES (the seller's Rule Set A — never mix the two formats):
+• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" for new with tags, "New" for new without tags. Example: "Madewell High Rise Skinny Crop Jeans Womens 30 Pre-Owned".
+• terapeak_search (broad, for Terapeak): Brand + Core Item + Size + Gender only. Do NOT include color, condition, minor collection/collab names, or other specific descriptors. Example: "FIGS Scrub Pants XS Womens".
+• Leave out size or gender if not visible or not applicable — never guess them.
 For condition: Do NOT use LIKE_NEW. If an item is near mint but preowned, use EXCELLENT instead.
 For suggested_price: Price realistically for what this exact item sells for on eBay. Be honest. Always end the price in .89 — round to the nearest whole dollar plus .89 (e.g. 24.89, 39.89, 125.89). Never use .99, .95, or a round number.
 For item_specifics: Only include fields relevant to this item. Leave any field blank ("") if not applicable or unknown — do NOT guess. Omit all section-label keys (the ones that look like "--- TOPS ---") from your response.
