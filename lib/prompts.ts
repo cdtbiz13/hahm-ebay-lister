@@ -111,8 +111,8 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
   "color": ["Primary color", "Secondary color if present — omit if solid"],
   "size": "Size EXACTLY as printed on the tag. If no size tag is visible but visible measurements clearly indicate one standard size, give that standard size (e.g. 'M', '32x34', '10.5'). Otherwise use an empty string — NEVER write placeholder text like 'See photos', 'Unknown', or 'N/A' (eBay blocks apparel listings with non-standard size values).",
   "material": "Fabric or material composition as shown on tag. Write 'See tag in photos' if unclear.",
-  "condition": "One of: NEW_WITH_TAGS, NEW_NO_TAGS, EXCELLENT, VERY_GOOD, GOOD, FAIR",
-  "condition_notes": "Honest 2-3 sentence condition description for buyers.",
+  "condition": "NEW_WITH_TAGS only if the original retail tags are attached in the photos; FAIR only for clear damage; otherwise GOOD",
+  "condition_notes": "1-2 short sentences: 'Pre-owned in good condition.' plus only the wear or flaws you can actually see (e.g. light fading, light pilling, small mark on left cuff). Never use the words very good, excellent, great, like new or mint. Never claim there are no holes, stains, flaws or damage.",
   "measurements": "Any measurements visible in photos, formatted clearly. Write 'See listing photos for measurements' if none visible.",
   "description": "Full eBay listing description — plain text only, no markdown.",
   "suggested_price": 0.00,
@@ -219,7 +219,7 @@ SEARCH STRING RULES (the seller's Rule Set A — never mix the two formats):
 • sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" for new with tags, "New" for new without tags. Example: "Madewell High Rise Skinny Crop Jeans Womens 30 Pre-Owned".
 • terapeak_search (broad, for Terapeak): Brand + Core Item + Size + Gender only. Do NOT include color, condition, minor collection/collab names, or other specific descriptors. Example: "FIGS Scrub Pants XS Womens".
 • Leave out size or gender if not visible or not applicable — never guess them.
-For condition: Do NOT use LIKE_NEW. If an item is near mint but preowned, use EXCELLENT instead.
+For condition: the seller lists every used item as Pre-owned – Good (GOOD). Use NEW_WITH_TAGS only when retail tags are attached; FAIR only for clear damage. Never EXCELLENT, VERY_GOOD, LIKE_NEW or NEW_NO_TAGS.
 For suggested_price: Price realistically for what this exact item sells for on eBay. Be honest. Always end the price in .89 — round to the nearest whole dollar plus .89 (e.g. 24.89, 39.89, 125.89). Never use .99, .95, or a round number.
 For item_specifics: Only include fields relevant to this item. Leave any field blank ("") if not applicable or unknown — do NOT guess. Omit all section-label keys (the ones that look like "--- TOPS ---") from your response.
 For category/category_hint: The broad category can be approximate, but the category_hint should help eBay find the exact leaf category for whatever type of item this is.
