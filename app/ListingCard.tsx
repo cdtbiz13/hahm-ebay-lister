@@ -115,6 +115,20 @@ export function ListingCard({
 
   const titleLen = listing?.title?.length ?? 0;
 
+  // Rule Set A checks: 70–80 characters, and for clothing/shoes the gender word
+  // has to end inside the first 50 characters.
+  const titleCheck = useMemo(() => {
+    const t = listing?.title ?? "";
+    const m = t.match(/\b(womens|women's|women|mens|men's|men|unisex|boys|girls|kids)\b/i);
+    const genderEnd = m && m.index !== undefined ? m.index + m[0].length : 0;
+    const needsGender = /^(womens_|mens_)/.test(listing?.category ?? "");
+    const notes: string[] = [];
+    if (t.length && t.length < 70) notes.push("under 70 characters");
+    if (needsGender && !genderEnd) notes.push("no gender word");
+    else if (genderEnd > 50) notes.push(`gender ends at character ${genderEnd} (must be ≤ 50)`);
+    return { genderEnd, notes };
+  }, [listing?.title, listing?.category]);
+
   // eBay's size standardization blocks apparel/footwear listings that are
   // missing a Size, so flag those for the seller before they post.
   const sizeRequired = SIZE_REQUIRED_CATEGORIES.has(listing?.category ?? "");
@@ -174,7 +188,11 @@ export function ListingCard({
               Title
               <span className={`count${titleLen > TITLE_LIMIT ? " over" : ""}`}>
                 {titleLen}/{TITLE_LIMIT}
+                {titleCheck.genderEnd > 0 && ` · gender ends at ${titleCheck.genderEnd}`}
               </span>
+              {titleCheck.notes.length > 0 && (
+                <span className="count over"> ⚠️ {titleCheck.notes.join(", ")}</span>
+              )}
             </label>
             <input
               type="text"
