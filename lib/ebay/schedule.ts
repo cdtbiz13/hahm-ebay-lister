@@ -14,6 +14,7 @@ import { EBAY_TRADING } from "./config";
 import { suggestLeafCategory, categoryAspects, acceptedConditionIds, type AspectMeta } from "./taxonomy";
 import { canonicalizeAspectKeys } from "./aspects";
 import { fillRecommendedAspects } from "./aspectFill";
+import { finalizeAspects } from "./aspectTiers";
 import {
   addMissingAspects,
   buildAspects,
@@ -241,6 +242,7 @@ export async function scheduleListing(
     /* taxonomy unavailable — the Verify recovery below still runs */
   }
   if (meta.length) await fillRecommendedAspects(listing, aspects, meta, sku);
+  const specificNotes = meta.length ? finalizeAspects(aspects, meta, listing) : [];
 
   const grade = normalizeConditionInput(listing.condition);
   const conditionIds = conditionIdsForGrade(grade, accepted, catKey);
@@ -363,7 +365,10 @@ export async function scheduleListing(
     return { success: false, sku, error: errorText(add) };
   }
 
-  const warnings = add.errors.filter((e) => e.severity === "Warning").map((e) => e.message);
+  const warnings = [
+    ...specificNotes,
+    ...add.errors.filter((e) => e.severity === "Warning").map((e) => e.message),
+  ];
   console.log("[ebay/schedule] scheduled", { sku, itemId: add.itemId, startAt: startAt.toISOString(), price });
   return {
     success: true,
