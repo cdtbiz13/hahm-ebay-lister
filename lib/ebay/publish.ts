@@ -777,7 +777,13 @@ export interface PublishInput {
   sku: string;
   listing: ListingResult;
   images: { mediaType: string; data: string }[];
+  // eBay-hosted photo URLs already uploaded via /api/ebay/photos. When present,
+  // these are used instead of uploading `images` (keeps requests small).
+  imageUrls?: string[];
 }
+
+// eBay allows up to 24 photos per listing.
+export const MAX_LISTING_PHOTOS = 24;
 
 export interface PublishResult {
   success: boolean;
@@ -878,7 +884,9 @@ export async function publishListing(
   }
 
   // 1. Upload photos → EPS URLs (parallel, order preserved).
-  const photoUrls = await uploadPhotos(accessToken, input.images.slice(0, 12), sku);
+  const photoUrls = input.imageUrls?.length
+    ? input.imageUrls.slice(0, MAX_LISTING_PHOTOS)
+    : await uploadPhotos(accessToken, input.images.slice(0, MAX_LISTING_PHOTOS), sku);
   if (photoUrls.length === 0) {
     return {
       success: false,
@@ -926,7 +934,7 @@ export async function publishListing(
       title: String(listing.title || "Untitled").slice(0, 80),
       description: listing.description || "",
       aspects,
-      imageUrls: photoUrls.slice(0, 12),
+      imageUrls: photoUrls.slice(0, MAX_LISTING_PHOTOS),
     },
     condition,
     conditionDescription: listing.condition_notes || "",

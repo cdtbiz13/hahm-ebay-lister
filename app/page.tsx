@@ -29,7 +29,10 @@ const WRITE_CONCURRENCY = 3;
 const ITEM_SLOTS = 10;
 // eBay accepts at most 12 photos per listing; sending more just bloats the
 // publish request toward Vercel's body limit.
-const MAX_PUBLISH_PHOTOS = 12;
+// eBay allows 24 photos per listing. They're uploaded to eBay a few at a
+// time first (see /api/ebay/photos), so no request gets too big.
+const MAX_PUBLISH_PHOTOS = 24;
+const PHOTO_UPLOAD_BATCH = 4;
 
 // "draft" leaves the offer unpublished; "promote" publishes it live and enrols
 // the listing in a Promoted Listings campaign. Same request payload either way.
@@ -542,6 +545,20 @@ export default function Home() {
         } | null = null;
         let hadTransientRetry = false;
 
+        // Upload the photos to eBay in small batches first (keeps each
+        // request well under the server's size limit), then list with URLs.
+        const imageUrls: string[] = [];
+        for (let start = 0; start < images.length; start += PHOTO_UPLOAD_BATCH) {
+          const r = await apiPost("/api/ebay/photos", {
+            sku: group.listing.custom_label || group.sku,
+            start,
+            images: images.slice(start, start + PHOTO_UPLOAD_BATCH),
+          });
+          const d = (await readJson(r)) as { ok?: boolean; urls?: string[]; error?: string };
+          if (!d.ok || !d.urls) throw new Error(d.error || "Could not upload photos to eBay.");
+          imageUrls.push(...d.urls);
+        }
+
         for (let attempt = 0; ; attempt++) {
           const res = await apiPost(POST_ENDPOINTS[mode], {
             sku: group.sku,
@@ -549,7 +566,8 @@ export default function Home() {
               mode === "schedule"
                 ? { ...group.listing, schedule_at: group.listing.schedule_at || defaultScheduleAt() }
                 : group.listing,
-            images,
+            images: [],
+            imageUrls,
           });
 
           if (
@@ -755,6 +773,13 @@ export default function Home() {
                         );
                       })}
                     </div>
+                  )}
+                  {sl.photoIds.length > 0 && (
+                    <p className={`post-hint${sl.photoIds.length > MAX_PUBLISH_PHOTOS ? " size-warning" : ""}`}>
+                      {sl.photoIds.length} photo{sl.photoIds.length === 1 ? "" : "s"}
+                      {sl.photoIds.length > MAX_PUBLISH_PHOTOS &&
+                        ` — eBay takes ${MAX_PUBLISH_PHOTOS}; photos after #${MAX_PUBLISH_PHOTOS} will be left off`}
+                    </p>
                   )}
                   <label className="item-slot-add">
                     {sl.photoIds.length ? "+ Add more photos" : "📸 Tap or drop this item's photos"}

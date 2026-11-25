@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ success: false, error: "Invalid request." }, { status: 400 });
   }
-  if (!body.listing || !Array.isArray(body.images) || body.images.length === 0) {
+  const hasPhotos =
+    (Array.isArray(body.images) && body.images.length > 0) ||
+    (Array.isArray(body.imageUrls) && body.imageUrls.length > 0);
+  if (!body.images) body.images = [];
+  if (!body.listing || !hasPhotos) {
     return NextResponse.json(
       { success: false, error: "Missing listing or photos." },
       { status: 400 }
