@@ -1056,3 +1056,71 @@ textarea {
 .model-hint {
   font-style: italic;
 }
+
+/* ── Item boxes (one per item, no sorting) ───────────────────────────── */
+.item-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.item-slot {
+  border: 1.5px dashed var(--color-border, #d8d2c4);
+  border-radius: 12px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.item-slot.dragging {
+  border-color: var(--color-accent, #0a6b55);
+  background: rgba(10, 107, 85, 0.06);
+}
+.item-slot-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.item-slot-head input {
+  flex: 1;
+  min-width: 0;
+}
+.item-slot .thumbs {
+  margin: 0;
+}
+.item-slot-add {
+  cursor: pointer;
+  text-align: center;
+  padding: 0.6rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 0.9rem;
+}
+.thumb .cover-tag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--color-accent, #0a6b55);
+  color: #fff;
+}
+.thumb .thumb-last {
+  top: auto;
+  bottom: 4px;
+  right: 4px;
+}
+.bulk-sort {
+  margin-top: 1rem;
+}
+.bulk-sort > summary {
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+}
+.ebay-policies {
+  width: 100%;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}

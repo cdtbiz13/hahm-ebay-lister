@@ -119,4 +119,8 @@ export interface ItemGroup {
   // quoted for it (should be $0.00).
   scheduledFor?: string;
   listingFees?: number;
+
+  // SKU / temp ID typed on the upload slot; pre-fills the listing's
+  // custom_label once it's written.
+  presetLabel?: string;
 }
