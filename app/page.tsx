@@ -25,6 +25,8 @@ type Step = "upload" | "review" | "listings";
 const MAX_PHOTOS = 300;
 const SORT_CHUNK = 100;
 const WRITE_CONCURRENCY = 3;
+// One upload box per item, so photos never need AI sorting.
+const ITEM_SLOTS = 10;
 // eBay accepts at most 12 photos per listing; sending more just bloats the
 // publish request toward Vercel's body limit.
 const MAX_PUBLISH_PHOTOS = 12;
@@ -144,8 +146,72 @@ export default function Home() {
     }
   }, []);
 
-  const removePhoto = (id: string) =>
+  const removePhoto = (id: string) => {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
+    setSlots((prev) => prev.map((sl) => ({ ...sl, photoIds: sl.photoIds.filter((x) => x !== id) })));
+  };
+
+  // ── Item slots: one box per item, no sorting ────────────
+  const [slots, setSlots] = useState<{ label: string; photoIds: string[] }[]>(() =>
+    Array.from({ length: ITEM_SLOTS }, () => ({ label: "", photoIds: [] }))
+  );
+  const [slotDrag, setSlotDrag] = useState<number | null>(null);
+
+  const addFilesToSlot = useCallback(async (slot: number, fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setError(null);
+    const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) {
+      setError("Those didn't look like photos. Use JPG, PNG, or WebP.");
+      return;
+    }
+    try {
+      const resized = await Promise.all(files.map(resizeImage));
+      const added = resized.map((r) => ({ id: newId(), ...r }));
+      setPhotos((prev) => [...prev, ...added]);
+      setSlots((prev) =>
+        prev.map((sl, i) =>
+          i === slot ? { ...sl, photoIds: [...sl.photoIds, ...added.map((a) => a.id)] } : sl
+        )
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
+  // Move a photo to the end of its item (e.g. the SKU sticker shot).
+  const movePhotoToEnd = (slot: number, id: string) =>
+    setSlots((prev) =>
+      prev.map((sl, i) =>
+        i === slot ? { ...sl, photoIds: [...sl.photoIds.filter((x) => x !== id), id] } : sl
+      )
+    );
+
+  const filledSlots = slots.filter((sl) => sl.photoIds.length > 0).length;
+  const slottedIds = useMemo(() => new Set(slots.flatMap((sl) => sl.photoIds)), [slots]);
+  // Photos added through the bulk dropzone (not in an item box).
+  const bulkPhotos = useMemo(() => photos.filter((p) => !slottedIds.has(p.id)), [photos, slottedIds]);
+
+  // Master button: every filled box becomes one item; write them all now.
+  const writeSlots = async () => {
+    const next: ItemGroup[] = slots
+      .map((sl, i) => ({ sl, i }))
+      .filter(({ sl }) => sl.photoIds.length > 0)
+      .map(({ sl, i }, n) => ({
+        id: newId(),
+        sku: sl.label.trim() || buildSku(binPrefix, n),
+        name: `Item ${i + 1}`,
+        photoIds: sl.photoIds,
+        status: "idle",
+        presetLabel: sl.label.trim() || undefined,
+      }));
+    if (next.length === 0) return;
+    groupsRef.current = next;
+    setGroups(next);
+    setOrphanIds([]);
+    setStep("listings");
+    await runPool(next.map((g) => g.id), WRITE_CONCURRENCY, writeGroup);
+  };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -155,6 +221,8 @@ export default function Home() {
 
   // ── Sort ────────────────────────────────────────────────
   const sort = async () => {
+    // Only the photos dropped in the bulk box — item boxes are already sorted.
+    const photos = bulkPhotos;
     if (photos.length === 0) return;
     setSorting(true);
     setError(null);
@@ -276,6 +344,7 @@ export default function Home() {
   // Every uploaded photo is one item, in upload order. No sorting call, so
   // nothing can be split or mixed up — upload, write, review, schedule.
   const useAsOneItem = () => {
+    const photos = bulkPhotos;
     if (photos.length === 0) return;
     setError(null);
     setSkuStart(0);
@@ -395,7 +464,14 @@ export default function Home() {
         setGroups((prev) =>
           prev.map((g) =>
             g.id === groupId
-              ? { ...g, status: "done", listing: data.listing }
+              ? {
+                  ...g,
+                  status: "done",
+                  listing: {
+                    ...data.listing!,
+                    custom_label: data.listing!.custom_label || g.presetLabel || undefined,
+                  },
+                }
               : g
           )
         );
@@ -609,19 +685,107 @@ export default function Home() {
         <>
           <section className="hero">
             <h2>
-              Dump every photo. <em>We&rsquo;ll sort it out.</em>
+              One box per item. <em>We&rsquo;ll write the listings.</em>
             </h2>
             <p>
-              Add all your photos for the whole batch at once. The app groups
-              them into separate items, then writes a polished eBay listing for
-              each one.
+              Drop each item&rsquo;s photos into its own box (up to 10 items),
+              add its SKU or temp ID, then write them all at once.
             </p>
           </section>
 
           <section className="panel" aria-labelledby="upload-heading">
             <h2 id="upload-heading" className="section-label">
-              1 · Add all your photos
+              1 · Add each item&rsquo;s photos
             </h2>
+
+            <div className="item-slots">
+              {slots.map((sl, i) => (
+                <div
+                  key={i}
+                  className={`item-slot${slotDrag === i ? " dragging" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setSlotDrag(i);
+                  }}
+                  onDragLeave={() => setSlotDrag(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setSlotDrag(null);
+                    void addFilesToSlot(i, e.dataTransfer.files);
+                  }}
+                >
+                  <div className="item-slot-head">
+                    <strong>Item {i + 1}</strong>
+                    <input
+                      type="text"
+                      placeholder="SKU / temp ID"
+                      value={sl.label}
+                      onChange={(e) =>
+                        setSlots((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, label: e.target.value } : x))
+                        )
+                      }
+                    />
+                  </div>
+                  {sl.photoIds.length > 0 && (
+                    <div className="thumbs">
+                      {sl.photoIds.map((id, n) => {
+                        const p = photoMap.get(id);
+                        if (!p) return null;
+                        return (
+                          <div className="thumb" key={id}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={p.previewUrl} alt="" />
+                            {n === 0 && <span className="cover-tag">COVER</span>}
+                            <button type="button" aria-label="Remove photo" onClick={() => removePhoto(id)}>
+                              ✕
+                            </button>
+                            {n < sl.photoIds.length - 1 && (
+                              <button
+                                type="button"
+                                className="thumb-last"
+                                aria-label="Move photo to the end"
+                                title="Move to end (e.g. SKU sticker)"
+                                onClick={() => movePhotoToEnd(i, id)}
+                              >
+                                ⤓
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <label className="item-slot-add">
+                    {sl.photoIds.length ? "+ Add more photos" : "📸 Tap or drop this item's photos"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      hidden
+                      onChange={(e) => {
+                        void addFilesToSlot(i, e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="result-actions" style={{ borderTop: "none", paddingTop: 0 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void writeSlots()}
+                disabled={filledSlots === 0}
+              >
+                ✍️ Write {filledSlots || ""} listing{filledSlots === 1 ? "" : "s"}
+              </button>
+            </div>
+
+            <details className="bulk-sort">
+              <summary>Or drop a whole batch and let the app sort it</summary>
 
             <div className="field bin-field">
               <label htmlFor="bin">
@@ -679,9 +843,9 @@ export default function Home() {
               />
             </div>
 
-            {photos.length > 0 && (
+            {bulkPhotos.length > 0 && (
               <div className="thumbs" aria-label="Selected photos">
-                {photos.map((p) => (
+                {bulkPhotos.map((p) => (
                   <div className="thumb" key={p.id}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.previewUrl} alt="" />
@@ -703,7 +867,7 @@ export default function Home() {
                 type="button"
                 className="btn btn-ghost"
                 onClick={useAsOneItem}
-                disabled={photos.length === 0 || sorting}
+                disabled={bulkPhotos.length === 0 || sorting}
               >
                 1️⃣ These photos are one item
               </button>
@@ -711,18 +875,19 @@ export default function Home() {
                 type="button"
                 className="btn btn-primary"
                 onClick={sort}
-                disabled={photos.length === 0 || sorting}
+                disabled={bulkPhotos.length === 0 || sorting}
               >
                 {sorting ? (
                   <>
                     <span className="spinner" aria-hidden="true" /> Sorting{" "}
-                    {photos.length} photos…
+                    {bulkPhotos.length} photos…
                   </>
                 ) : (
-                  <>🔀 Sort {photos.length || ""} photos into items</>
+                  <>🔀 Sort {bulkPhotos.length || ""} photos into items</>
                 )}
               </button>
             </div>
+            </details>
 
             {error && (
               <p className="note note-error" role="alert">
