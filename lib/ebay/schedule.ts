@@ -24,6 +24,7 @@ import {
   resolveCategory,
   uploadPhotos,
   type AccountSetup,
+  MAX_LISTING_PHOTOS,
 } from "./publish";
 import { resolvePackage } from "@/lib/package";
 import type { ListingResult } from "@/lib/types";
@@ -31,6 +32,8 @@ import type { ListingResult } from "@/lib/types";
 export interface ScheduleInput {
   listing: ListingResult;
   images: { mediaType: string; data: string }[];
+  // Photos already uploaded via /api/ebay/photos (used instead of `images`).
+  imageUrls?: string[];
 }
 
 export interface ScheduleResult {
@@ -206,7 +209,9 @@ export async function scheduleListing(
   }
 
   // 2. Photos → eBay Picture Services.
-  const photoUrls = await uploadPhotos(accessToken, input.images.slice(0, 12), sku.replace(/\s+/g, "-"));
+  const photoUrls = input.imageUrls?.length
+    ? input.imageUrls.slice(0, MAX_LISTING_PHOTOS)
+    : await uploadPhotos(accessToken, input.images.slice(0, MAX_LISTING_PHOTOS), sku.replace(/\s+/g, "-"));
   if (!photoUrls.length) {
     const why = photoUploadError();
     return { success: false, sku, error: `Could not upload any photos to eBay${why ? `: ${why}` : "."}` };
