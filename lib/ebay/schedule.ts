@@ -102,8 +102,14 @@ function parseTrading(text: string): TradingResp {
   }
   const itemId = (text.match(/<ItemID>(\d+)<\/ItemID>/) || [])[1] || "";
   const fees: { name: string; amount: number }[] = [];
-  for (const m of text.matchAll(/<Fee>\s*<Name>([^<]+)<\/Name>\s*<Fee[^>]*>([\d.]+)<\/Fee>/g)) {
-    fees.push({ name: m[1], amount: Number(m[2]) || 0 });
+  // Each <Fee> carries the gross fee and, when a free-listing allotment (e.g. a
+  // store subscription) covers it, a PromotionalDiscount that cancels it out.
+  // What the seller actually pays is fee minus discount.
+  for (const m of text.matchAll(
+    /<Fee>\s*<Name>([^<]+)<\/Name>\s*<Fee[^>]*>([\d.]+)<\/Fee>\s*(?:<PromotionalDiscount[^>]*>([\d.]+)<\/PromotionalDiscount>)?/g
+  )) {
+    const net = (Number(m[2]) || 0) - (Number(m[3]) || 0);
+    fees.push({ name: m[1], amount: Math.max(0, Math.round(net * 100) / 100) });
   }
   return { ack, text, errors, itemId, fees };
 }
@@ -331,6 +337,9 @@ export async function scheduleListing(
   const fees = totalFees(verify.fees);
   const feeBreakdown = verify.fees.filter((f) => f.amount > 0 && f.name !== "ListingFee");
   if (fees > 0) {
+    console.warn(
+      `[ebay/schedule] fee quote sku=${sku}: ${(verify.text.match(/<Fees>[\s\S]*?<\/Fees>/) || [""])[0].slice(0, 3000)}`
+    );
     return {
       success: false,
       sku,
