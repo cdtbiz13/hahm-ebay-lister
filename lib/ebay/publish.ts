@@ -9,7 +9,6 @@ import {
   EBAY_INV_BASE,
   EBAY_MARKETPLACE_ID,
   EBAY_MKT_BASE,
-  EBAY_TRADING,
 } from "./config";
 
 import { createSellerHubDraft } from "./draft-feed";
@@ -566,46 +565,60 @@ function updateOfferBody(offer: Record<string, unknown>): Record<string, unknown
   return Object.fromEntries(Object.entries(offer).filter(([k]) => !skip.has(k)));
 }
 
-// ── Photo upload to eBay Picture Services (Trading API, XML) ──────────────────
+// ── Photo upload to eBay Picture Services (Media API) ────────────────────────
+// eBay decommissioned the Trading API's UploadSiteHostedPictures on Sept 30,
+// 2026 (it now answers 404). Its replacement is the Media API's
+// createImageFromFile: multipart/form-data with the file in a field named
+// "image", user token with the sell.inventory scope, 201 + an EPS imageUrl.
 
-async function uploadPhoto(
+const EBAY_MEDIA_BASE = "https://apim.ebay.com/commerce/media/v1_beta";
+
+function mediaError(r: { status: number; text: string; json: any }): string {
+  const e = r.json?.errors?.[0];
+  if (e) return `${e.longMessage || e.message || "Upload failed"}${e.errorId ? ` (${e.errorId})` : ""}`;
+  return `HTTP ${r.status}`;
+}
+
+export async function uploadPhoto(
   accessToken: string,
   base64: string,
   mediaType: string,
   name: string
 ): Promise<string | null> {
-  const xml = `<?xml version="1.0" encoding="utf-8"?>
-<UploadSiteHostedPicturesRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-  <PictureName>${name.slice(0, 50)}</PictureName>
-  <PictureUploadPolicy>ClearAndNew</PictureUploadPolicy>
-</UploadSiteHostedPicturesRequest>`;
-
   const data = base64.includes(",") ? base64.split(",")[1] : base64;
   const bytes = Buffer.from(data, "base64");
   const form = new FormData();
-  form.append("XML Payload", new Blob([xml], { type: "text/xml;charset=utf-8" }), "payload.xml");
-  form.append("image", new Blob([new Uint8Array(bytes)], { type: mediaType }), name);
+  form.append("image", new Blob([new Uint8Array(bytes)], { type: mediaType || "image/jpeg" }), name);
 
-  const resp = await fetch(EBAY_TRADING, {
+  // Let fetch set the multipart boundary in Content-Type.
+  const resp = await fetch(`${EBAY_MEDIA_BASE}/image/create_image_from_file`, {
     method: "POST",
-    headers: {
-      "X-EBAY-API-SITEID": "0",
-      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-      "X-EBAY-API-CALL-NAME": "UploadSiteHostedPictures",
-      "X-EBAY-API-IAF-TOKEN": accessToken,
-    },
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
     body: form,
   });
   const text = await resp.text();
-  const m = text.match(/<FullURL>([^<]+)<\/FullURL>/);
-  if (m) return m[1];
-  // Keep eBay's reason so the seller sees it instead of a generic failure.
-  const msg =
-    (text.match(/<LongMessage>([\s\S]*?)<\/LongMessage>/) || [])[1] ||
-    (text.match(/<ShortMessage>([\s\S]*?)<\/ShortMessage>/) || [])[1] ||
-    `HTTP ${resp.status}`;
-  const code = (text.match(/<ErrorCode>(\d+)<\/ErrorCode>/) || [])[1];
-  lastPhotoError = `${msg.trim()}${code ? ` (${code})` : ""}`;
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    /* non-JSON */
+  }
+
+  if (resp.ok) {
+    if (json?.imageUrl) return String(json.imageUrl);
+    // Some responses carry only the Location header — fetch the image record.
+    const loc = resp.headers.get("location");
+    if (loc) {
+      const g = await fetch(loc, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      });
+      const gj: any = await g.json().catch(() => null);
+      if (gj?.imageUrl) return String(gj.imageUrl);
+    }
+    lastPhotoError = "eBay accepted the photo but returned no image URL";
+  } else {
+    lastPhotoError = mediaError({ status: resp.status, text, json });
+  }
   console.error(`[ebay/photos] upload failed ${name}: http=${resp.status} ${lastPhotoError} ${text.slice(0, 600)}`);
   return null;
 }
