@@ -233,7 +233,44 @@ export function normalizeConditionInput(value: string | undefined): string {
     .replace(/['’]/g, "")
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
-  return CONDITION_ALIASES[cleaned] || "GOOD";
+  const grade = CONDITION_ALIASES[cleaned] || "GOOD";
+  // Seller's rule: new with tags stays New with tags; anything better than
+  // Good (Excellent, Very Good, new without tags) lists as Pre-owned – Good —
+  // the seller upgrades by hand when an item deserves it. Worse grades (Fair,
+  // for parts) are never upgraded.
+  if (grade === "NEW_WITH_TAGS") return grade;
+  if (["NEW_NO_TAGS", "LIKE_NEW", "EXCELLENT", "VERY_GOOD"].includes(grade)) return "GOOD";
+  return grade;
+}
+
+// Condition notes that match the "Good" grade: no stronger grade words, and no
+// blanket promises the photos can't back up ("No holes, stains, or damage").
+export function cleanConditionNotes(notes: string | undefined, grade: string): string {
+  let t = String(notes || "").trim();
+  if (grade === "NEW_WITH_TAGS") return t;
+  // Stronger grade words → "good".
+  t = t.replace(
+    /\b(?:very\s+good|excellent|great|like[-\s]new|near[-\s]mint|mint|pristine|gently\s+used)\b/gi,
+    "good"
+  );
+  // Blanket "no holes / stains / damage" promises → removed.
+  const flaw = "(?:holes?|stains?|flaws?|damage|defects?|issues?|tears?|rips?|odors?|smells?|pilling|snags?)";
+  t = t.replace(
+    new RegExp(
+      `[,;]?\\s*(?:with\\s+|and\\s+)?no\\s+(?:major\\s+|visible\\s+|obvious\\s+|noticeable\\s+|other\\s+)?${flaw}(?:\\s*(?:,|or|and|,\\s*or|,\\s*and)\\s*${flaw})*(?:\\s+(?:noted|seen|found|observed|present|to\\s+note))?`,
+      "gi"
+    ),
+    ""
+  );
+  const sentences = t
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.replace(/^[\s,;.]+/, "").replace(/\s+([.,!?])/g, "$1").trim())
+    .map((x) => x.replace(/\.{2,}/g, "."))
+    .filter((x) => x.replace(/[^a-z]/gi, "").length > 3 && !/^(?:good|used|pre-?owned)\W*$/i.test(x))
+    .map((x) => x.charAt(0).toUpperCase() + x.slice(1));
+  t = sentences.join(" ").replace(/\bgood\s+good\b/gi, "good").replace(/\s{2,}/g, " ").trim();
+  if (!/\bgood\b[^.]{0,20}\bcondition\b/i.test(t)) t = `Pre-owned in good condition.${t ? ` ${t}` : ""}`;
+  return t.includes("photos") ? t : `${t} Please see all photos for details.`;
 }
 
 function isApparelConditionPolicy(acceptedIds: Set<number>): boolean {
@@ -939,7 +976,7 @@ export async function publishListing(
       imageUrls: photoUrls.slice(0, MAX_LISTING_PHOTOS),
     },
     condition,
-    conditionDescription: listing.condition_notes || "",
+    conditionDescription: cleanConditionNotes(listing.condition_notes, normalizeConditionInput(listing.condition)),
     availability: { shipToLocationAvailability: { quantity: 1 } },
     // Default weight/size so CALCULATED-shipping policies publish (eBay 25020).
     packageWeightAndSize: defaultPackageWeightAndSize(),

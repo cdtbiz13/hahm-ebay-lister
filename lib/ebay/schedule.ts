@@ -20,6 +20,7 @@ import {
   buildAspects,
   conditionIdsForGrade,
   normalizeConditionInput,
+  cleanConditionNotes,
   photoUploadError,
   reconcileAspects,
   resolveCategory,
@@ -245,6 +246,7 @@ export async function scheduleListing(
   const specificNotes = meta.length ? finalizeAspects(aspects, meta, listing) : [];
 
   const grade = normalizeConditionInput(listing.condition);
+  const conditionNotes = cleanConditionNotes(listing.condition_notes, grade);
   const conditionIds = conditionIdsForGrade(grade, accepted, catKey);
   let condIdx = 0;
   let fbIdx = 0;
@@ -280,7 +282,7 @@ export async function scheduleListing(
     <PrimaryCategory><CategoryID>${esc(catId)}</CategoryID></PrimaryCategory>
     <StartPrice currencyID="USD">${price.toFixed(2)}</StartPrice>
     ${conditionId ? `<ConditionID>${conditionId}</ConditionID>` : ""}
-    ${!isNew && listing.condition_notes ? `<ConditionDescription>${esc(String(listing.condition_notes).slice(0, 1000))}</ConditionDescription>` : ""}
+    ${!isNew && conditionNotes ? `<ConditionDescription>${esc(conditionNotes.slice(0, 1000))}</ConditionDescription>` : ""}
     <Country>US</Country>
     <Currency>USD</Currency>
     <Location>${esc(location)}</Location>

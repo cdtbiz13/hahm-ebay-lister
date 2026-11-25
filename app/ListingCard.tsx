@@ -48,12 +48,10 @@ function toNum(v: unknown): number {
 
 const TITLE_LIMIT = 80;
 
-// eBay's pre-owned condition tiers, matching the values the model returns.
+// The seller lists used items as Pre-owned · Good (upgrading by hand in Seller
+// Hub when one deserves it); the server maps anything better than Good to Good.
 const CONDITIONS: { value: string; label: string }[] = [
   { value: "NEW_WITH_TAGS", label: "New with tags" },
-  { value: "NEW_NO_TAGS", label: "New without tags" },
-  { value: "EXCELLENT", label: "Pre-owned · Excellent" },
-  { value: "VERY_GOOD", label: "Pre-owned · Very good" },
   { value: "GOOD", label: "Pre-owned · Good" },
   { value: "FAIR", label: "Pre-owned · Fair" },
 ];
@@ -254,16 +252,12 @@ export function ListingCard({
               </label>
               <select
                 id={`cond-${group.id}`}
-                value={listing.condition ?? "GOOD"}
+                value={
+                  ["NEW_WITH_TAGS", "FAIR"].includes(String(listing.condition)) ? listing.condition : "GOOD"
+                }
                 onChange={(e) => onEdit(group.id, { condition: e.target.value })}
               >
                 {/* Keep an unexpected model value selectable rather than losing it. */}
-                {listing.condition &&
-                  !CONDITIONS.some((c) => c.value === listing.condition) && (
-                    <option value={listing.condition}>
-                      {listing.condition.replace(/_/g, " ")}
-                    </option>
-                  )}
                 {CONDITIONS.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
