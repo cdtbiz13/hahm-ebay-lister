@@ -8,11 +8,35 @@ interface Status {
   connected: boolean;
 }
 
+interface Policy {
+  type: "shipping" | "payment" | "returns";
+  id: string;
+  name: string;
+  pinned: boolean;
+}
+
 export function EbayConnect() {
   const [status, setStatus] = useState<Status | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [pasteValue, setPasteValue] = useState("");
+  const [policies, setPolicies] = useState<Policy[] | null>(null);
+
+  // Show which business policies exist and which one scheduling will use.
+  const checkPolicies = async () => {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await apiPost("/api/ebay/policies", {});
+      const data = (await r.json()) as { ok: boolean; policies?: Policy[]; error?: string };
+      if (!data.ok && !data.policies?.length) throw new Error(data.error || "Couldn't read policies.");
+      setPolicies(data.policies || []);
+    } catch (e) {
+      setNotice({ ok: false, msg: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -98,11 +122,40 @@ export function EbayConnect() {
           <button
             type="button"
             className="btn-ghost"
+            onClick={checkPolicies}
+            disabled={busy}
+          >
+            Business policies
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
             onClick={disconnect}
             disabled={busy}
           >
             Disconnect
           </button>
+          {policies && (
+            <div className="ebay-policies">
+              {policies.length === 0 ? (
+                <p>No business policies found. Create them in eBay → Account → Business policies.</p>
+              ) : (
+                (["shipping", "payment", "returns"] as const).map((type) => (
+                  <div key={type}>
+                    <strong>{type[0].toUpperCase() + type.slice(1)}:</strong>{" "}
+                    {policies
+                      .filter((p) => p.type === type)
+                      .map((p) => `${p.pinned ? "✅ " : ""}${p.name} (${p.id})`)
+                      .join(" · ") || "none"}
+                  </div>
+                ))
+              )}
+              <p className="post-hint">
+                ✅ = the one scheduling uses. To pick another, set EBAY_SHIPPING_POLICY,
+                EBAY_PAYMENT_POLICY or EBAY_RETURN_POLICY in Vercel to its name or ID.
+              </p>
+            </div>
+          )}
         </>
       ) : (
         <>

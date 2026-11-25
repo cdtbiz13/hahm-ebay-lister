@@ -102,7 +102,7 @@ Study each photo carefully:
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this exact structure:
 {
-  "title": "SEO-rich eBay listing title — maximum 80 characters, front-load best keywords, no filler",
+  "title": "eBay title built by the TITLE RULES below — 70 to 80 characters, never more than 80",
   "category": "Pick the CLOSEST broad match from: womens_top, womens_dress, womens_skirt, womens_pants, womens_coat, womens_sweater, womens_jeans, womens_clothing, womens_shoes, handbag, wallet, mens_top, mens_pants, mens_coat, mens_sweater, mens_jeans, mens_clothing, mens_shoes, jewelry, scarf, belt, sunglasses, hat, accessory, doll, collectible, collector_plate, toy, home_decor, book, knife, sporting_goods, electronics, camera, audio, video_game, media, vinyl_record, cd, dvd_bluray, musical_instrument, kitchenware, glassware, pottery_ceramics, art, craft, tool, automotive, office, health_beauty, small_appliance, lighting, linens, holiday, board_game, puzzle, plush, action_figure, trading_card, sports_memorabilia, coin, stamp, ephemera, other",
   "category_hint": "Short search phrase for the real eBay category, such as 'vintage porcelain figurine' or 'men's hiking boots'. Keep it under 8 words.",
   "category_id": "Leave blank unless the exact eBay category ID is explicitly known. Otherwise use an empty string.",
@@ -116,6 +116,8 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
   "measurements": "Any measurements visible in photos, formatted clearly. Write 'See listing photos for measurements' if none visible.",
   "description": "Full eBay listing description — plain text only, no markdown.",
   "suggested_price": 0.00,
+  "sold_search": "TIGHT search string for eBay sold listings (see SEARCH STRING RULES)",
+  "terapeak_search": "BROAD search string for Terapeak (see SEARCH STRING RULES)",
   "seo_keywords": ["Up to 10 search phrases buyers would use"],
   "key_features": ["Up to 5 features"],
   "item_specifics": {
@@ -204,7 +206,19 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
   }
 }
 
-For title: Make it read like a strong live eBay title, using the most searchable nouns, brand, model, type, material, size, era, character, theme, or pattern when supported by the photos.
+TITLE RULES (the seller's Rule Set A — follow exactly):
+• eBay's search ranks on the title only. Use 70–80 of the 80 characters. The first 50 characters carry the most weight (mobile cuts off around 48–55).
+• The first 50 characters must contain, in this order: (1) Brand, (2) Product type or model name, (3) Gender/department — Womens, Mens, Unisex, Boys, Girls or Kids — for any clothing, shoes or accessory with a gender (it must land inside the first 50 characters; if a style code and the gender compete near character 50, the gender wins), (4) ONE distinguishing attribute: the colorway, primary color, or key material.
+• Characters 51–80 (the tail): size, style/reference code if not used above, material/construction detail, secondary descriptors.
+• Skip gender for items without one (tools, kitchenware, home goods, media).
+• Only use words the photos support. If the size isn't visible, leave it out of the title — never guess a size.
+• No keyword stuffing, no repeated words, no filler or hype (NEW, L@@K, WOW, MUST SEE, RARE unless truly rare), no condition words (Pre-owned, Used, EUC, NWOT), no punctuation beyond what grammar needs, no quotation marks. Readable beats stuffed.
+• Example: "Gap 1969 Best Girlfriend Jeans Womens Gray Distressed Stretch Denim Size 28 Reg"
+
+SEARCH STRING RULES (the seller's Rule Set A — never mix the two formats):
+• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" for new with tags, "New" for new without tags. Example: "Madewell High Rise Skinny Crop Jeans Womens 30 Pre-Owned".
+• terapeak_search (broad, for Terapeak): Brand + Core Item + Size + Gender only. Do NOT include color, condition, minor collection/collab names, or other specific descriptors. Example: "FIGS Scrub Pants XS Womens".
+• Leave out size or gender if not visible or not applicable — never guess them.
 For condition: Do NOT use LIKE_NEW. If an item is near mint but preowned, use EXCELLENT instead.
 For suggested_price: Price realistically for what this exact item sells for on eBay. Be honest. Always end the price in .89 — round to the nearest whole dollar plus .89 (e.g. 24.89, 39.89, 125.89). Never use .99, .95, or a round number.
 For item_specifics: Only include fields relevant to this item. Leave any field blank ("") if not applicable or unknown — do NOT guess. Omit all section-label keys (the ones that look like "--- TOPS ---") from your response.
