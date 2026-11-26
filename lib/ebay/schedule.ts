@@ -15,6 +15,7 @@ import { suggestLeafCategory, categoryAspects, acceptedConditionIds, type Aspect
 import { canonicalizeAspectKeys } from "./aspects";
 import { fillRecommendedAspects } from "./aspectFill";
 import { finalizeAspects } from "./aspectTiers";
+import { descriptionToHtml } from "./description";
 import {
   addMissingAspects,
   buildAspects,
@@ -278,7 +279,7 @@ export async function scheduleListing(
     const isNew = conditionId === 1000 || conditionId === 1500 || conditionId === 1750;
     return `<Item>
     <Title>${esc(String(listing.title || "Untitled").slice(0, 80))}</Title>
-    <Description>${cdata(listing.description || "")}</Description>
+    <Description>${cdata(descriptionToHtml(listing.description))}</Description>
     <PrimaryCategory><CategoryID>${esc(catId)}</CategoryID></PrimaryCategory>
     <StartPrice currencyID="USD">${price.toFixed(2)}</StartPrice>
     ${conditionId ? `<ConditionID>${conditionId}</ConditionID>` : ""}

@@ -113,8 +113,8 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation. Use this
   "material": "Fabric or material composition as shown on tag. Write 'See tag in photos' if unclear.",
   "condition": "NEW_WITH_TAGS only if the original retail tags are attached in the photos; FAIR only for clear damage; otherwise GOOD",
   "condition_notes": "1-2 short sentences: 'Pre-owned in good condition.' plus only the wear or flaws you can actually see (e.g. light fading, light pilling, small mark on left cuff). Never use the words very good, excellent, great, like new or mint. Never claim there are no holes, stains, flaws or damage.",
-  "measurements": "Any measurements visible in photos, formatted clearly. Write 'See listing photos for measurements' if none visible.",
-  "description": "Full eBay listing description — plain text only, no markdown.",
+  "measurements": "Only measurements you can read off a ruler or tape in the photos, e.g. 'Waist across: 14.5 in; Front rise: 9.25 in; Inseam: 26.5 in'. Empty string if no ruler photos — never estimate.",
+  "description": "Plain-text eBay description built EXACTLY by the DESCRIPTION RULES below (line breaks between sections, • bullets, no markdown).",
   "suggested_price": 0.00,
   "sold_search": "TIGHT search string for eBay sold listings (see SEARCH STRING RULES)",
   "terapeak_search": "BROAD search string for Terapeak (see SEARCH STRING RULES)",
@@ -214,6 +214,30 @@ TITLE RULES (the seller's Rule Set A — follow exactly):
 • Only use words the photos support. If the size isn't visible, leave it out of the title — never guess a size.
 • No keyword stuffing, no repeated words, no filler or hype (NEW, L@@K, WOW, MUST SEE, RARE unless truly rare), no condition words (Pre-owned, Used, EUC, NWOT), no punctuation beyond what grammar needs, no quotation marks. Readable beats stuffed.
 • Example: "Gap 1969 Best Girlfriend Jeans Womens Gray Distressed Stretch Denim Size 28 Reg"
+
+DESCRIPTION RULES (the seller's template — follow exactly; most buyers read on a phone, so keep it short and scannable):
+eBay search ranks on the title and item specifics, not the description. The description's job is to close the sale and prevent returns: clear facts, exact measurements, honest condition. Use natural wording with the key facts (brand, item, gender, size, color) once each — never keyword lists or stuffing.
+Write these sections in this order, separated by one blank line:
+1. One line — a readable name: Brand + Line/Style + Item – Gender + Tag Size – Color. Example: "Gap 1969 Best Girlfriend Jeans – Womens 28 Regular – Ash Grey". (Not the keyword title. Skip gender/size for items without them.)
+2. One or two sentences: what it is and its standout features (fit, wash, fabric, design details) — only what the photos show.
+3. "DETAILS" on its own line, then • bullets, only those that apply:
+   • Brand: …
+   • Style: line/collection name and style # if on a tag
+   • Tag size: exactly as printed (clothing/shoes)
+   • Color: …
+   • Material: write "(per tag)" after it ONLY when a content tag shows it; if no tag, "Material: unknown (no tag)"
+   • Features: key construction/design details (closure, pockets, lining, stretch, distressing…)
+   • Made in: country from the tag, if shown
+   For non-clothing, use the bullets that fit (Model, Dimensions, Capacity, Pattern, Markings, Includes, Tested/untested).
+4. "MEASUREMENTS (approx., laid flat)" on its own line, then • bullets — ONLY numbers read off a ruler/tape in the photos:
+   • Pants/jeans/shorts: Waist across, Front rise, Inseam (+ Leg opening if shown)
+   • Tops/jackets/sweaters: Pit to pit, Length (+ Sleeve if shown)
+   • Dresses/skirts: Pit to pit or Waist across, Length
+   • Non-clothing: dimensions if shown
+   If there are no ruler photos, omit this whole section — never estimate a measurement.
+5. "CONDITION" on its own line, then the condition sentence(s) — same rules as condition_notes ("Pre-owned in good condition." + only visible wear; never very good/excellent/like new; never "no holes, stains or damage").
+6. Last line, exactly: "Please review all photos, they are part of the description. Ships fast. Thanks for looking!"
+Never include: the SKU, hashtags, keyword lists, ALL-CAPS hype, emojis, shipping/return/payment terms (eBay policies cover those), links, or any claim the photos can't back up.
 
 SEARCH STRING RULES (the seller's Rule Set A — never mix the two formats):
 • sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" for new with tags, "New" for new without tags. Example: "Madewell High Rise Skinny Crop Jeans Womens 30 Pre-Owned".

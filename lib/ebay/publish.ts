@@ -22,6 +22,7 @@ import {
 import { clipAspectValue, matchAllowed, canonicalizeAspectKeys } from "./aspects";
 import { fillRecommendedAspects } from "./aspectFill";
 import { finalizeAspects, isMeasureAspect } from "./aspectTiers";
+import { descriptionToHtml } from "./description";
 import { APPAREL_CATEGORIES, PANTS_CATEGORIES } from "@/lib/categories";
 import { normalizePrice } from "@/lib/pricing";
 import type { ListingResult } from "@/lib/types";
@@ -971,7 +972,7 @@ export async function publishListing(
   const inventoryItem: any = {
     product: {
       title: String(listing.title || "Untitled").slice(0, 80),
-      description: listing.description || "",
+      description: descriptionToHtml(listing.description),
       aspects,
       imageUrls: photoUrls.slice(0, MAX_LISTING_PHOTOS),
     },
@@ -1040,7 +1041,7 @@ export async function publishListing(
     sku,
     marketplaceId: EBAY_MARKETPLACE_ID,
     format: "FIXED_PRICE",
-    listingDescription: listing.description || "",
+    listingDescription: descriptionToHtml(listing.description),
     pricingSummary: {
       price: {
         value: String(price),
