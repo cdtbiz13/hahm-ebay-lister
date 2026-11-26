@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SIZE_REQUIRED_CATEGORIES } from "@/lib/categories";
-import { normalizePrice } from "@/lib/pricing";
 import {
   PACKAGE_GROUP_LABELS,
   guessPackageGroup,
@@ -60,11 +59,6 @@ function formatPrice(value: ListingResult["suggested_price"]): string {
   const n = typeof value === "string" ? parseFloat(value) : value;
   if (n === undefined || Number.isNaN(n)) return "$0.00";
   return `$${n.toFixed(2)}`;
-}
-
-function priceToInput(value: ListingResult["suggested_price"]): string {
-  const n = typeof value === "string" ? parseFloat(value) : value;
-  return n === undefined || Number.isNaN(n) ? "" : String(n);
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -220,37 +214,6 @@ export function ListingCard({
           </div>
 
           <div className="meta-row">
-            <div className="stat editable">
-              <label className="k" htmlFor={`price-${group.id}`}>
-                Price
-              </label>
-              <div className="price-input">
-                <span aria-hidden="true">$</span>
-                <input
-                  id={`price-${group.id}`}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={priceToInput(listing.suggested_price)}
-                  onChange={(e) =>
-                    onEdit(group.id, {
-                      suggested_price:
-                        e.target.value === "" ? "" : Number(e.target.value),
-                    })
-                  }
-                  // Snap to the house .89 ending once the seller is done typing,
-                  // so the field matches what actually publishes to eBay. An
-                  // empty field stays empty.
-                  onBlur={(e) => {
-                    const snapped = normalizePrice(e.target.value);
-                    if (snapped !== undefined) {
-                      onEdit(group.id, { suggested_price: snapped });
-                    }
-                  }}
-                />
-              </div>
-            </div>
             <div className="stat editable">
               <label className="k" htmlFor={`cond-${group.id}`}>
                 Condition
@@ -413,7 +376,7 @@ export function ListingCard({
                         step="0.01"
                         inputMode="decimal"
                         value={listing.list_price ?? ""}
-                        placeholder="24.89"
+                        placeholder="Enter price"
                         onChange={(e) =>
                           onEdit(group.id, {
                             list_price: e.target.value === "" ? "" : Number(e.target.value),

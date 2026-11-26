@@ -1027,7 +1027,12 @@ export async function publishListing(
   }
 
 // 3. Offer.
-  const price = computeBufferedPrice(listing.suggested_price);
+  // The seller's own price (the card's "Your eBay price") wins; the AI guess is
+  // only a fallback for older listings that never had one entered.
+  const ownPrice = Number(listing.list_price);
+  const price = Number.isFinite(ownPrice) && ownPrice > 0
+    ? Math.round(ownPrice * 100) / 100
+    : computeBufferedPrice(listing.suggested_price);
 
   if (!Number.isFinite(price) || price <= 0) {
     return {
