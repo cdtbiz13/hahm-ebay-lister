@@ -143,6 +143,11 @@ export function ListingCard({
   const sizeRequired = SIZE_REQUIRED_CATEGORIES.has(listing?.category ?? "");
   const sizeMissing = sizeRequired && !(listing?.size ?? "").trim();
 
+  // Clothing/shoes should carry ruler measurements in the description — they
+  // cut "doesn't fit" returns. Only a warning; posting is still allowed.
+  const measurementsMissing =
+    sizeRequired && !!listing?.description && !/MEASUREMENTS/i.test(listing.description);
+
   return (
     <article className={`listing-card status-${group.status}`}>
       <header className="listing-card-head" onClick={() => setOpen((o) => !o)}>
@@ -293,6 +298,13 @@ export function ListingCard({
               ⚠️ No size found on the tag. eBay now blocks apparel listings
               without a standard size — check the photos or measure the item,
               then fill in Size above before posting.
+            </p>
+          )}
+
+          {measurementsMissing && (
+            <p className="size-warning" role="alert">
+              ⚠️ No measurements in the description. Add a ruler/tape photo and
+              rewrite, or type them in — measurements cut fit returns.
             </p>
           )}
 
