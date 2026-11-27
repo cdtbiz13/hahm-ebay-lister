@@ -236,12 +236,12 @@ export default function IntakePage() {
 
         <label className="dropzone intake-add">
           <span className="icon" aria-hidden="true">📸</span>
-          <strong>Add photos</strong>
-          <span>One photo per item — take them now or pick from your camera roll</span>
+          <strong>Take photo</strong>
+          <span>One photo per item — tap again for the next one</span>
           <input
             type="file"
             accept="image/*"
-            multiple
+            capture="environment"
             hidden
             onChange={(e) => {
               void addPhotos(e.target.files);
