@@ -1177,6 +1177,7 @@ textarea {
 }
 
 .intake-add {
+  display: block; /* it's a <label>; inline boxes draw the dashed border in pieces */
   margin-bottom: 1rem;
 }
 
