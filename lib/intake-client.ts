@@ -61,14 +61,18 @@ export function floorFor(cost: number): number {
 const EBAY_KEEP = 0.834;
 const ORDER_FEE = 0.4;
 const REINVEST = 0.43;
+// Friday split: cost back first, then profit → 55% payout / 25% taxes /
+// 15% extra reinvest / 5% buffer. "Your pay" is the 55%.
+export const PAYOUT_SHARE = 0.55;
 
-export type Verdict = "good" | "thin" | "pass";
+export type Verdict = "good" | "lowpay" | "thin" | "pass";
 
 export interface BuyCheck {
   cost: number; // what you'd pay, incl. tax
   floor: number; // minimum list price for that cost
   multiple: number; // list price ÷ cost
-  profit: number; // after eBay fees, before shipping
+  profit: number; // after eBay fees, before shipping — the whole 100% before the split
+  pay: number; // your 55% of that profit
   maxShelf: number; // most to pay at the register (before tax) for this list price
   verdict: Verdict;
 }
@@ -78,7 +82,8 @@ export function checkBuy(
   shelf: number,
   rate: number,
   taxIncluded: boolean,
-  multiplier: number
+  multiplier: number,
+  minPay = 0
 ): BuyCheck | null {
   const cost = costWithTax(shelf, rate, taxIncluded);
   if (!(listPrice > 0) || !Number.isFinite(cost)) return null;
@@ -91,9 +96,10 @@ export function checkBuy(
     Math.min((listPrice * EBAY_KEEP - ORDER_FEE) * REINVEST, listPrice / multiplier)
   );
   const maxShelf = Math.floor((taxIncluded ? maxCost : maxCost / (1 + rate)) * 100) / 100;
+  const pay = round2(Math.max(0, profit) * PAYOUT_SHARE);
   const verdict: Verdict =
-    listPrice < floor ? "pass" : multiple >= multiplier ? "good" : "thin";
-  return { cost, floor: round2(floor), multiple, profit, maxShelf, verdict };
+    listPrice < floor ? "pass" : multiple < multiplier ? "thin" : pay < minPay ? "lowpay" : "good";
+  return { cost, floor: round2(floor), multiple, profit, pay, maxShelf, verdict };
 }
 
 const MULT_KEY = "sourcing:multiplier:v1";
@@ -108,6 +114,24 @@ export function loadMultiplier(): number {
 export function storeMultiplier(n: number): void {
   try {
     window.localStorage.setItem(MULT_KEY, String(n));
+  } catch {
+    /* ignore */
+  }
+}
+
+const MINPAY_KEY = "sourcing:minpay:v1";
+export function loadMinPay(): number {
+  try {
+    const raw = window.localStorage.getItem(MINPAY_KEY);
+    const n = raw === null ? NaN : parseFloat(raw);
+    return n >= 0 && n <= 500 ? n : 5;
+  } catch {
+    return 5;
+  }
+}
+export function storeMinPay(n: number): void {
+  try {
+    window.localStorage.setItem(MINPAY_KEY, String(n));
   } catch {
     /* ignore */
   }

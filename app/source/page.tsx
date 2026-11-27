@@ -7,10 +7,12 @@ import {
   TAX_SOURCES,
   checkBuy,
   loadBatch,
+  loadMinPay,
   loadMultiplier,
   loadSettings,
   soldCompsUrl,
   storeBatch,
+  storeMinPay,
   storeMultiplier,
   storeSettings,
   terapeakUrl,
@@ -34,6 +36,7 @@ export default function SourcePage() {
   const [sourceId, setSourceId] = useState("terre-haute");
   const [taxIncluded, setTaxIncluded] = useState(false);
   const [multiplier, setMultiplier] = useState("3.5");
+  const [minPay, setMinPay] = useState("5");
   const [found, setFound] = useState<Found>(EMPTY);
   const [reading, setReading] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
@@ -49,6 +52,7 @@ export default function SourcePage() {
     setSourceId(s.sourceId);
     setTaxIncluded(s.taxIncluded);
     setMultiplier(String(loadMultiplier()));
+    setMinPay(String(loadMinPay()));
     setBoughtCount(loadBatch().length);
     loaded.current = true;
   }, []);
@@ -60,9 +64,15 @@ export default function SourcePage() {
     if (loaded.current && n >= 1 && n <= 20) storeMultiplier(n);
   }, [multiplier]);
 
+  useEffect(() => {
+    const n = num(minPay);
+    if (loaded.current && n >= 0 && n <= 500) storeMinPay(n);
+  }, [minPay]);
+
   const rate = TAX_SOURCES.find((t) => t.id === sourceId)?.rate ?? 0;
   const mult = num(multiplier) >= 1 ? num(multiplier) : 3.5;
-  const check = checkBuy(num(listPrice), num(shelf), rate, taxIncluded, mult);
+  const pay = num(minPay) >= 0 ? num(minPay) : 5;
+  const check = checkBuy(num(listPrice), num(shelf), rate, taxIncluded, mult, pay);
 
   const reset = () => {
     setFound(EMPTY);
@@ -125,7 +135,9 @@ export default function SourcePage() {
   const verdictText = check
     ? check.verdict === "good"
       ? "✅ Good buy"
-      : check.verdict === "thin"
+      : check.verdict === "lowpay"
+        ? `⚠️ Low pay — under your $${pay.toFixed(2)} minimum`
+        : check.verdict === "thin"
         ? `⚠️ Thin — under your ${mult}× rule`
         : "❌ Pass — below your minimum price"
     : null;
@@ -154,6 +166,10 @@ export default function SourcePage() {
           <label className="field">
             <span>Buy rule (× cost)</span>
             <input inputMode="decimal" value={multiplier} onChange={(e) => setMultiplier(e.target.value.replace(/[^0-9.]/g, ""))} />
+          </label>
+          <label className="field">
+            <span>Min pay per item ($)</span>
+            <input inputMode="decimal" value={minPay} onChange={(e) => setMinPay(e.target.value.replace(/[^0-9.]/g, ""))} />
           </label>
           {rate > 0 && (
             <label className="check">
@@ -233,8 +249,9 @@ export default function SourcePage() {
               {Number.isFinite(check.multiple) && <> · {check.multiple.toFixed(1)}× cost</>}
             </span>
             <span>
-              Est. profit {money(check.profit)} after eBay fees (before shipping) · Your minimum for this cost {money(check.floor)}
+              Profit {money(check.profit)} · <strong>Your pay {money(check.pay)}</strong> (55%) — after eBay fees, before shipping
             </span>
+            <span>Your minimum list price for this cost: {money(check.floor)}</span>
             <span>
               Most to pay at this list price: <strong>{money(check.maxShelf)}</strong>
               {!taxIncluded && rate > 0 && " tag price"}

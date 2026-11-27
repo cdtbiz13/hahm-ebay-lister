@@ -1514,7 +1514,8 @@ textarea {
   border: 1px solid var(--color-accent);
 }
 
-.verdict-thin {
+.verdict-thin,
+.verdict-lowpay {
   background: var(--color-gold-soft);
   border: 1px solid var(--color-gold);
 }
