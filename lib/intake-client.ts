@@ -55,6 +55,64 @@ export function floorFor(cost: number): number {
   return cost > 0 ? round2(minimumPrice(cost)) : NaN;
 }
 
+// ── Buy / pass verdict for the sourcing check ───────────────────────────────
+// eBay fees match the minimum-price formula: 13.6% FVF + 3% promoted = 16.6%,
+// plus the $0.40 order fee. Shipping isn't included.
+const EBAY_KEEP = 0.834;
+const ORDER_FEE = 0.4;
+const REINVEST = 0.43;
+
+export type Verdict = "good" | "thin" | "pass";
+
+export interface BuyCheck {
+  cost: number; // what you'd pay, incl. tax
+  floor: number; // minimum list price for that cost
+  multiple: number; // list price ÷ cost
+  profit: number; // after eBay fees, before shipping
+  maxShelf: number; // most to pay at the register (before tax) for this list price
+  verdict: Verdict;
+}
+
+export function checkBuy(
+  listPrice: number,
+  shelf: number,
+  rate: number,
+  taxIncluded: boolean,
+  multiplier: number
+): BuyCheck | null {
+  const cost = costWithTax(shelf, rate, taxIncluded);
+  if (!(listPrice > 0) || !Number.isFinite(cost)) return null;
+  const floor = cost > 0 ? minimumPrice(cost) : 0;
+  const multiple = cost > 0 ? listPrice / cost : Infinity;
+  const profit = round2(listPrice * EBAY_KEEP - ORDER_FEE - cost);
+  // Highest cost that still passes both rules, converted back to a shelf price.
+  const maxCost = Math.max(
+    0,
+    Math.min((listPrice * EBAY_KEEP - ORDER_FEE) * REINVEST, listPrice / multiplier)
+  );
+  const maxShelf = Math.floor((taxIncluded ? maxCost : maxCost / (1 + rate)) * 100) / 100;
+  const verdict: Verdict =
+    listPrice < floor ? "pass" : multiple >= multiplier ? "good" : "thin";
+  return { cost, floor: round2(floor), multiple, profit, maxShelf, verdict };
+}
+
+const MULT_KEY = "sourcing:multiplier:v1";
+export function loadMultiplier(): number {
+  try {
+    const n = parseFloat(window.localStorage.getItem(MULT_KEY) ?? "");
+    return n >= 1 && n <= 20 ? n : 3.5;
+  } catch {
+    return 3.5;
+  }
+}
+export function storeMultiplier(n: number): void {
+  try {
+    window.localStorage.setItem(MULT_KEY, String(n));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function soldCompsUrl(q: string): string {
   return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1`;
 }

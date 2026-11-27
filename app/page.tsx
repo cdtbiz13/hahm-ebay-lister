@@ -11,7 +11,7 @@ import { ReviewBoard } from "./ReviewBoard";
 import { ListingsView } from "./ListingsView";
 import { defaultScheduleAt } from "./ListingCard";
 import { AwaitingList } from "./AwaitingList";
-import Link from "next/link";
+import { AppNav } from "./AppNav";
 import type { AwaitingItem } from "@/lib/intake-client";
 import type {
   AnalyzeResponse,
@@ -760,8 +760,8 @@ export default function Home() {
           <h1>Listing Writer</h1>
           <p>Upload a pile of photos · auto-sort into items · write every listing.</p>
         </div>
-        <Link href="/intake" className="btn btn-ghost nav-link">📥 Intake</Link>
       </header>
+      <AppNav current="/" />
 
       <EbayConnect />
 

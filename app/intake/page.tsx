@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { apiPost } from "@/lib/api-client";
 import { makeIntakeThumb, resizeImage } from "@/lib/resize";
 import {
@@ -18,6 +17,7 @@ import {
   type IntakeDraft,
 } from "@/lib/intake-client";
 import { AwaitingList } from "../AwaitingList";
+import { AppNav } from "../AppNav";
 
 const IDENTIFY_CONCURRENCY = 3;
 const MAX_BATCH = 40;
@@ -204,8 +204,8 @@ export default function IntakePage() {
           <h1>Intake</h1>
           <p>Photo + price for each new find → tracker row with a temp ID.</p>
         </div>
-        <Link href="/" className="btn btn-ghost nav-link">✍️ Listing →</Link>
       </header>
+      <AppNav current="/intake" />
 
       <section className="panel">
         <h2 className="section-label">1 · This haul</h2>
