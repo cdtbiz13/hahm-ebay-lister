@@ -18,7 +18,7 @@ import {
   batchUpdateValues,
   getValues,
   listTabs,
-  sheetsConfig,
+  trackerTab,
 } from "./google-sheets";
 
 export const INTAKE_TAB = "App Intake";
@@ -90,6 +90,13 @@ function cellText(s: unknown, max = 200): string {
   return /^[=+\-@]/.test(t) ? `'${t}` : t;
 }
 
+// Force plain text so Sheets doesn't turn "1127-01" or a size like "9/29"
+// into a date. The leading apostrophe isn't shown or read back.
+function asText(s: unknown, max = 80): string {
+  const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  return t ? `'${t}` : "";
+}
+
 function parseMoney(s: string | undefined): number {
   const n = parseFloat(String(s ?? "").replace(/[$,]/g, ""));
   return Number.isFinite(n) ? n : 0;
@@ -103,7 +110,7 @@ async function ensureIntakeTab(): Promise<void> {
 }
 
 async function trackerIds(): Promise<{ ids: string[]; lastUsedRow: number }> {
-  const { tab } = sheetsConfig();
+  const tab = trackerTab();
   const rows = await getValues(a1(tab, `A${TRACKER_FIRST_ROW + 1}:B${MAX_TRACKER_ROW}`));
   let lastUsedRow = TRACKER_FIRST_ROW;
   rows.forEach((r, i) => {
@@ -133,7 +140,7 @@ async function findTrackerRow(id: string): Promise<number | null> {
  * tracker row, and add it to the intake list. Returns the temp IDs in order.
  */
 export async function saveIntakeBatch(items: IntakeItemInput[]): Promise<string[]> {
-  const { tab } = sheetsConfig();
+  const tab = trackerTab();
   const existingIntake = await intakeRows();
   const { ids: trackerIdList, lastUsedRow } = await trackerIds();
 
@@ -161,17 +168,17 @@ export async function saveIntakeBatch(items: IntakeItemInput[]): Promise<string[
     if (row > MAX_TRACKER_ROW) throw new Error("The tracker tab is full — add more rows to it first.");
     const cost = Math.round(item.cost * 100) / 100;
     trackerWrites.push(
-      { range: a1(tab, `A${row}:B${row}`), values: [[tempId, cellText(item.idLine)]] },
-      { range: a1(tab, `D${row}:E${row}`), values: [[cellText(item.size ?? "", 40), 1]] },
+      { range: a1(tab, `A${row}:B${row}`), values: [[asText(tempId), cellText(item.idLine)]] },
+      { range: a1(tab, `D${row}:E${row}`), values: [[asText(item.size, 40), 1]] },
       { range: a1(tab, `G${row}:H${row}`), values: [[usDate(item.datePurchased), cost]] },
       { range: a1(tab, `L${row}`), values: [[STATUS_AWAITING]] }
     );
     intakeValues.push([
-      tempId,
+      asText(tempId),
       cellText(item.idLine),
-      cellText(item.size ?? "", 40),
+      asText(item.size, 40),
       cost,
-      item.datePurchased,
+      asText(item.datePurchased),
       cellText(item.soldSearch ?? ""),
       cellText(item.terapeakSearch ?? ""),
       "awaiting",
@@ -233,14 +240,14 @@ export async function linkIntake(
   tempId: string,
   update: { sku?: string; title?: string; price?: number }
 ): Promise<{ row: number }> {
-  const { tab } = sheetsConfig();
+  const tab = trackerTab();
   const sku = update.sku?.trim();
   // A retried link may find the row already renamed to the SKU.
   const row = (await findTrackerRow(tempId)) ?? (sku ? await findTrackerRow(sku) : null);
   if (!row) throw new Error(`Couldn't find ${tempId} in column A of the ${tab} tab.`);
 
   const writes: { range: string; values: (string | number)[][] }[] = [];
-  writes.push({ range: a1(tab, `A${row}`), values: [[cellText(sku || tempId, 50)]] });
+  writes.push({ range: a1(tab, `A${row}`), values: [[asText(sku || tempId, 50)]] });
   if (update.title?.trim()) {
     writes.push({ range: a1(tab, `B${row}`), values: [[cellText(update.title, 80)]] });
   }
@@ -256,7 +263,7 @@ export async function linkIntake(
 // ── Remove (donated, damaged, keeping…) ──────────────────────────────────────
 
 export async function removeIntake(tempId: string, reason: RemoveReason): Promise<void> {
-  const { tab } = sheetsConfig();
+  const tab = trackerTab();
   const row = await findTrackerRow(tempId);
   if (row) {
     const writes: { range: string; values: (string | number)[][] }[] = [

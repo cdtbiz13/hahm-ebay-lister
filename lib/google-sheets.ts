@@ -1,14 +1,13 @@
-// Minimal Google Sheets client for the intake feature.
+// Minimal Google Sheets client for the intake feature. Two ways to connect:
 //
-// Uses a Google Cloud *service account* (a robot login that only sees sheets
-// you share with it). No extra npm packages: we sign the OAuth JWT with Node's
-// built-in crypto and call the Sheets REST API with fetch.
+// 1. Tracker script (simplest — see scripts/tracker-bridge.gs):
+//      TRACKER_SCRIPT_URL     the Apps Script web app URL (…/exec)
+//      TRACKER_SCRIPT_SECRET  the password set at the top of that script
+// 2. Google Cloud service account:
+//      GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, TRACKER_SPREADSHEET_ID
 //
-// Env vars (set in Vercel → Settings → Environment Variables):
-//   GOOGLE_SERVICE_ACCOUNT_EMAIL  e.g. intake-bot@my-project.iam.gserviceaccount.com
-//   GOOGLE_PRIVATE_KEY            the "private_key" value from the JSON key file
-//   TRACKER_SPREADSHEET_ID        the ID from the tracker's URL
-//   TRACKER_TAB                   optional, defaults to "2026"
+// Either way, TRACKER_TAB (optional) names this year's tab; defaults to "2026".
+// No extra npm packages: the service-account JWT is signed with Node's crypto.
 
 import crypto from "crypto";
 
@@ -28,19 +27,65 @@ function b64url(input: Buffer | string): string {
     .replace(/\//g, "_");
 }
 
+/** The year tab that holds inventory rows. */
+export function trackerTab(): string {
+  return process.env.TRACKER_TAB?.trim() || "2026";
+}
+
+function scriptConfig(): { url: string; secret: string } | null {
+  const url = process.env.TRACKER_SCRIPT_URL?.trim();
+  const secret = process.env.TRACKER_SCRIPT_SECRET?.trim();
+  return url && secret ? { url, secret } : null;
+}
+
+// Talk to the Apps Script bound to the tracker. It answers JSON
+// { ok, result | error }. Google redirects the POST once; fetch follows it.
+async function scriptCall<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
+  const cfg = scriptConfig()!;
+  let res: Response;
+  try {
+    res = await fetch(cfg.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ secret: cfg.secret, op, ...args }),
+      redirect: "follow",
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error("Couldn't reach the tracker script.");
+  }
+  const text = await res.text();
+  let data: { ok?: boolean; result?: T; error?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new SheetsConfigError(
+      "The tracker script didn't answer correctly. In Apps Script, check the deployment is a Web app that runs as you with access set to Anyone, and that TRACKER_SCRIPT_URL ends in /exec."
+    );
+  }
+  if (!data.ok) {
+    if (data.error === "unauthorized") {
+      throw new SheetsConfigError(
+        "The tracker script rejected the password. TRACKER_SCRIPT_SECRET in Vercel must match SECRET at the top of the script."
+      );
+    }
+    throw new Error(`Tracker script error: ${data.error || "unknown"}`);
+  }
+  return data.result as T;
+}
+
 export function sheetsConfig() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
   // Vercel stores multi-line values fine, but people often paste the key with
   // literal "\n" sequences from the JSON file — normalize both forms.
   const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
   const spreadsheetId = process.env.TRACKER_SPREADSHEET_ID?.trim();
-  const tab = process.env.TRACKER_TAB?.trim() || "2026";
   if (!email || !key || !spreadsheetId) {
     throw new SheetsConfigError(
-      "Intake isn't set up yet: add GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY and TRACKER_SPREADSHEET_ID in Vercel → Settings → Environment Variables, then redeploy."
+      "Intake isn't connected to the tracker yet: add TRACKER_SCRIPT_URL and TRACKER_SCRIPT_SECRET in Vercel → Settings → Environment Variables, then redeploy."
     );
   }
-  return { email, key, spreadsheetId, tab };
+  return { email, key, spreadsheetId };
 }
 
 async function accessToken(): Promise<string> {
@@ -114,6 +159,7 @@ export function a1(tab: string, range: string): string {
 }
 
 export async function getValues(range: string): Promise<string[][]> {
+  if (scriptConfig()) return scriptCall<string[][]>("get", { range });
   const data = await call<{ values?: string[][] }>(
     `/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`
   );
@@ -125,6 +171,10 @@ export async function batchUpdateValues(
   data: { range: string; values: (string | number)[][] }[]
 ): Promise<void> {
   if (data.length === 0) return;
+  if (scriptConfig()) {
+    await scriptCall("update", { data });
+    return;
+  }
   await call(`/values:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
@@ -132,6 +182,7 @@ export async function batchUpdateValues(
 }
 
 export async function listTabs(): Promise<{ title: string; sheetId: number }[]> {
+  if (scriptConfig()) return scriptCall("tabs");
   const data = await call<{ sheets?: { properties: { title: string; sheetId: number } }[] }>(
     `?fields=sheets.properties(title,sheetId)`
   );
@@ -140,6 +191,10 @@ export async function listTabs(): Promise<{ title: string; sheetId: number }[]> 
 
 /** Create a hidden tab with a header row (used for the app's intake list). */
 export async function addHiddenTab(title: string, header: string[]): Promise<void> {
+  if (scriptConfig()) {
+    await scriptCall("addHiddenTab", { title, header });
+    return;
+  }
   await call(`:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({
