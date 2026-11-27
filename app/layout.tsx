@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   title: "Listing Writer — turn photos into eBay listings",
   description:
     "Upload your item photos and get a ready-to-post eBay listing in seconds.",
+  // iPhone "Add to Home Screen": open full-screen with a short name.
+  appleWebApp: { capable: true, title: "Lister", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

@@ -486,7 +486,7 @@ export function ListingCard({
               {group.scheduleNotes?.length ? (
                 <ul className="post-hint">
                   {group.scheduleNotes.map((n) => (
-                    <li key={n}>⚠️ {n}</li>
+                    <li key={n}>{n.startsWith("Tracker updated") ? "✅" : n.startsWith("⚠️") ? "" : "⚠️"} {n}</li>
                   ))}
                 </ul>
               ) : null}
@@ -517,6 +517,9 @@ export function ListingCard({
               {!group.promoted && group.promoteError && (
                 <p className="post-result err">⚠️ Not promoted: {group.promoteError}</p>
               )}
+              {group.scheduleNotes?.map((n) => (
+                <p key={n} className="post-hint">{n.startsWith("Tracker updated") ? "✅ " : ""}{n}</p>
+              ))}
             </div>
           ) : ebayConnected ? (
             <div className="post-row">

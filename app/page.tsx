@@ -10,6 +10,9 @@ import { ModelSelector } from "./ModelSelector";
 import { ReviewBoard } from "./ReviewBoard";
 import { ListingsView } from "./ListingsView";
 import { defaultScheduleAt } from "./ListingCard";
+import { AwaitingList } from "./AwaitingList";
+import Link from "next/link";
+import type { AwaitingItem } from "@/lib/intake-client";
 import type {
   AnalyzeResponse,
   ItemGroup,
@@ -155,9 +158,30 @@ export default function Home() {
   };
 
   // ── Item slots: one box per item, no sorting ────────────
-  const [slots, setSlots] = useState<{ label: string; photoIds: string[] }[]>(() =>
-    Array.from({ length: ITEM_SLOTS }, () => ({ label: "", photoIds: [] }))
-  );
+  const [slots, setSlots] = useState<
+    { label: string; photoIds: string[]; intake?: AwaitingItem }[]
+  >(() => Array.from({ length: ITEM_SLOTS }, () => ({ label: "", photoIds: [] })));
+  // Which item box is choosing its intake item (null = picker closed).
+  const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+
+  const attachIntake = (slot: number, item: AwaitingItem | undefined) => {
+    setSlots((prev) =>
+      prev.map((sl, i) => {
+        if (i !== slot) return sl;
+        // Default the box's ID to the temp ID; for clothing, type the sticker SKU over it.
+        const wasTemp = sl.intake && sl.label.trim() === sl.intake.tempId;
+        const label = item
+          ? sl.label.trim() && !wasTemp
+            ? sl.label
+            : item.tempId
+          : wasTemp
+            ? ""
+            : sl.label;
+        return { ...sl, intake: item, label };
+      })
+    );
+    setPickerSlot(null);
+  };
   const [slotDrag, setSlotDrag] = useState<number | null>(null);
 
   const addFilesToSlot = useCallback(async (slot: number, fileList: FileList | null) => {
@@ -207,6 +231,9 @@ export default function Home() {
         photoIds: sl.photoIds,
         status: "idle",
         presetLabel: sl.label.trim() || undefined,
+        intakeTempId: sl.intake?.tempId,
+        intakeCost: sl.intake?.cost,
+        intakeHint: sl.intake?.idLine,
       }));
     if (next.length === 0) return;
     groupsRef.current = next;
@@ -459,6 +486,7 @@ export default function Home() {
           images: imgs,
           analysisModel: getAnalysisModel() ?? undefined,
           routerModel: getSortModel() ?? undefined,
+          hint: group.intakeHint,
         });
         const data = (await readJson(res)) as AnalyzeResponse;
         if (!data.ok || !data.listing) {
@@ -473,6 +501,10 @@ export default function Home() {
                   listing: {
                     ...data.listing!,
                     custom_label: data.listing!.custom_label || g.presetLabel || undefined,
+                    // Cost from intake turns on the minimum-price warning.
+                    cost:
+                      data.listing!.cost ??
+                      (g.intakeCost && g.intakeCost > 0 ? g.intakeCost : undefined),
                   },
                 }
               : g
@@ -510,6 +542,35 @@ export default function Home() {
           : g
       )
     );
+
+  // After a listing is scheduled or live: put its SKU, final title and eBay
+  // price on the intake item's tracker row. Best-effort — the listing itself
+  // already succeeded, so a failure here is shown as a note, not an error.
+  const linkIntakeRow = useCallback(async (groupId: string) => {
+    const g = groupsRef.current.find((x) => x.id === groupId);
+    if (!g?.intakeTempId || !g.listing) return;
+    let note: string;
+    try {
+      const res = await apiPost("/api/intake/link", {
+        tempId: g.intakeTempId,
+        sku: g.listing.custom_label || g.sku,
+        title: g.listing.title,
+        price: g.listing.list_price,
+      });
+      const d = (await readJson(res)) as { ok?: boolean; row?: number; error?: string };
+      if (!d.ok) throw new Error(d.error || "unknown error");
+      note = `Tracker updated: row ${d.row} now ${g.listing.custom_label || g.sku} with title and price.`;
+    } catch (e) {
+      note = `⚠️ Listing is fine, but the tracker row for ${g.intakeTempId} wasn't updated (${
+        (e as Error).message
+      }). Update it by hand.`;
+    }
+    setGroups((prev) =>
+      prev.map((x) =>
+        x.id === groupId ? { ...x, scheduleNotes: [...(x.scheduleNotes ?? []), note] } : x
+      )
+    );
+  }, []);
 
   const postGroup = useCallback(
     async (groupId: string, mode: PostMode = "draft") => {
@@ -614,6 +675,7 @@ export default function Home() {
                 : g
             )
           );
+          await linkIntakeRow(groupId);
           return;
         }
 
@@ -639,6 +701,7 @@ export default function Home() {
               : g
           )
         );
+        if (mode === "promote") await linkIntakeRow(groupId);
       } catch (e) {
         setGroups((prev) =>
           prev.map((g) =>
@@ -653,7 +716,7 @@ export default function Home() {
         );
       }
     },
-    [photoMap]
+    [photoMap, linkIntakeRow]
   );
 
   const publishAndPromoteGroup = useCallback(
@@ -697,6 +760,7 @@ export default function Home() {
           <h1>Listing Writer</h1>
           <p>Upload a pile of photos · auto-sort into items · write every listing.</p>
         </div>
+        <Link href="/intake" className="btn btn-ghost nav-link">📥 Intake</Link>
       </header>
 
       <EbayConnect />
@@ -747,6 +811,28 @@ export default function Home() {
                       }
                     />
                   </div>
+                  {sl.intake ? (
+                    <div className="intake-chip">
+                      {sl.intake.thumb && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={sl.intake.thumb} alt="" />
+                      )}
+                      <div>
+                        <strong>{sl.intake.tempId}</strong> · {sl.intake.idLine}
+                        <span className="post-hint">
+                          {" "}
+                          Cost ${sl.intake.cost.toFixed(2)}. Clothing: type the sticker SKU in the box above.
+                        </span>
+                      </div>
+                      <button type="button" aria-label="Unlink intake item" onClick={() => attachIntake(i, undefined)}>
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="btn btn-ghost intake-pick" onClick={() => setPickerSlot(i)}>
+                      📋 Pick intake item
+                    </button>
+                  )}
                   {sl.photoIds.length > 0 && (
                     <div className="thumbs">
                       {sl.photoIds.map((id, n) => {
@@ -799,6 +885,24 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {pickerSlot !== null && (
+              <div className="picker-backdrop" role="dialog" aria-modal="true" onClick={() => setPickerSlot(null)}>
+                <div className="picker" onClick={(e) => e.stopPropagation()}>
+                  <div className="picker-head">
+                    <strong>Item {pickerSlot + 1}</strong>
+                    <button type="button" className="btn btn-ghost" onClick={() => setPickerSlot(null)}>
+                      Close
+                    </button>
+                  </div>
+                  <AwaitingList
+                    compact
+                    onPick={(item) => attachIntake(pickerSlot, item)}
+                    excludeIds={slots.map((x) => x.intake?.tempId).filter(Boolean) as string[]}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="result-actions" style={{ borderTop: "none", paddingTop: 0 }}>
               <button
