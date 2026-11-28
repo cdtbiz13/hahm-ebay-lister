@@ -129,7 +129,11 @@ export function AwaitingList({
                       disabled={removing === it.tempId}
                       onChange={(e) => {
                         const reason = e.target.value;
-                        if (reason && window.confirm(`Remove ${it.tempId} as "${reason}"? It leaves this list and the tracker status is set to ${reason}.`)) {
+                        if (reason && window.confirm(
+                          reason === "Donated" || reason === "Damaged"
+                            ? `Remove ${it.tempId} as ${reason}? Its tracker row is set to Donate with $0 sold.`
+                            : `Remove ${it.tempId} (${reason})? It leaves this list; its tracker row is not changed.`
+                        )) {
                           void remove(it.tempId, reason);
                         }
                       }}

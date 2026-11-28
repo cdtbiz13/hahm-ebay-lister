@@ -7,7 +7,10 @@ export function intakeError(context: string, e: unknown): NextResponse {
     return NextResponse.json({ ok: false, error: e.message }, { status: 503 });
   }
   console.error(`[${context}]`, e);
-  const msg = e instanceof Error && e.message.startsWith("Couldn't find") ? e.message : null;
+  const msg =
+    e instanceof Error && /^(Couldn't find|Tracker script error|The .* tab is full)/.test(e.message)
+      ? e.message
+      : null;
   return NextResponse.json(
     { ok: false, error: msg || "Couldn't reach the tracker sheet — please try again." },
     { status: msg ? 404 : 500 }

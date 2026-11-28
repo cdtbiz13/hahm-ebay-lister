@@ -6,7 +6,7 @@
 //      A = ID (temp ID → SKU later)   B = description / title
 //      D = size                       E = quantity (1)
 //      G = date purchased             H = cost (incl. tax)
-//      I = eBay price                 L = status
+//      I = eBay price                 L = status (Active / Sold / Donate)
 //    Columns C, F, J–X are never touched here except J/K on "Donated".
 //  • A hidden "App Intake" tab: the app's own list of items awaiting photos,
 //    including a small thumbnail so the item can be recognized at listing time.
@@ -39,8 +39,11 @@ const MAX_TRACKER_ROW = 4931;
 // Google Sheets refuses cells over 50,000 characters.
 export const MAX_THUMB_CHARS = 48_000;
 
-export const STATUS_AWAITING = "Awaiting photos";
-export const STATUS_LISTED = "Listed";
+// Column L only accepts the tracker's own statuses: Active, Sold, Donate.
+// "Awaiting photos" lives in the App Intake list, not in the tracker.
+export const STATUS_AWAITING = "Active";
+export const STATUS_LISTED = "Active";
+export const STATUS_DONATE = "Donate";
 export const REMOVE_REASONS = ["Donated", "Damaged", "Keeping", "Other"] as const;
 export type RemoveReason = (typeof REMOVE_REASONS)[number];
 
@@ -265,15 +268,14 @@ export async function linkIntake(
 export async function removeIntake(tempId: string, reason: RemoveReason): Promise<void> {
   const tab = trackerTab();
   const row = await findTrackerRow(tempId);
-  if (row) {
-    const writes: { range: string; values: (string | number)[][] }[] = [
-      { range: a1(tab, `L${row}`), values: [[reason]] },
-    ];
-    // The tracker's own convention: "Amount Sold For (if donated put 0)".
-    if (reason === "Donated") {
-      writes.push({ range: a1(tab, `J${row}:K${row}`), values: [[0, usDate(todayCentralIso())]] });
-    }
-    await batchUpdateValues(writes);
+  // Donated and Damaged are written off the tracker's way: status Donate,
+  // "Amount Sold For (if donated put 0)" = 0, and today's date.
+  // Keeping / Other only leave the app's list; the tracker row is untouched.
+  if (row && (reason === "Donated" || reason === "Damaged")) {
+    await batchUpdateValues([
+      { range: a1(tab, `L${row}`), values: [[STATUS_DONATE]] },
+      { range: a1(tab, `J${row}:K${row}`), values: [[0, usDate(todayCentralIso())]] },
+    ]);
   }
   await closeIntakeRow(tempId, `removed: ${reason}`);
 }
