@@ -160,9 +160,14 @@ export function ListingCard({
                 <span className="spinner small" aria-hidden="true" /> Writing…
               </>
             )}
-            {group.status === "done" && (
-              <>✅ {formatPrice(listing?.suggested_price)} · ready</>
-            )}
+            {group.status === "done" &&
+              (titleLen > TITLE_LIMIT ? (
+                <span style={{ color: "var(--color-danger)" }}>
+                  ⚠️ Title {titleLen}/{TITLE_LIMIT} — shorten before posting
+                </span>
+              ) : (
+                <>✅ {formatPrice(listing?.suggested_price)} · ready</>
+              ))}
             {group.status === "error" && (
               <span style={{ color: "var(--color-danger)" }}>
                 ⚠️ {group.postError || "Failed"}
@@ -200,6 +205,11 @@ export function ListingCard({
               </span>
               {titleCheck.notes.length > 0 && (
                 <span className="count over"> ⚠️ {titleCheck.notes.join(", ")}</span>
+              )}
+              {titleLen > TITLE_LIMIT && (
+                <span className="count over">
+                  {" "}⚠️ {titleLen - TITLE_LIMIT} over — shorten it before scheduling or posting
+                </span>
               )}
             </label>
             <input
@@ -486,7 +496,7 @@ export function ListingCard({
               {group.scheduleNotes?.length ? (
                 <ul className="post-hint">
                   {group.scheduleNotes.map((n) => (
-                    <li key={n}>⚠️ {n}</li>
+                    <li key={n}>{n.startsWith("Tracker updated") ? "✅" : n.startsWith("⚠️") ? "" : "⚠️"} {n}</li>
                   ))}
                 </ul>
               ) : null}
@@ -517,6 +527,9 @@ export function ListingCard({
               {!group.promoted && group.promoteError && (
                 <p className="post-result err">⚠️ Not promoted: {group.promoteError}</p>
               )}
+              {group.scheduleNotes?.map((n) => (
+                <p key={n} className="post-hint">{n.startsWith("Tracker updated") ? "✅ " : ""}{n}</p>
+              ))}
             </div>
           ) : ebayConnected ? (
             <div className="post-row">
@@ -525,7 +538,7 @@ export function ListingCard({
                   type="button"
                   className="btn btn-primary"
                   onClick={() => onSchedule(group.id)}
-                  disabled={group.postStatus === "saving"}
+                  disabled={group.postStatus === "saving" || titleLen > TITLE_LIMIT}
                 >
                   {group.postStatus === "saving" && group.postMode === "schedule" ? (
                     <>
@@ -539,7 +552,7 @@ export function ListingCard({
                   type="button"
                   className="btn btn-primary"
                   onClick={() => onPost(group.id)}
-                  disabled={group.postStatus === "saving"}
+                  disabled={group.postStatus === "saving" || titleLen > TITLE_LIMIT}
                 >
                   {group.postStatus === "saving" && group.postMode === "draft" ? (
                     <>
@@ -553,7 +566,7 @@ export function ListingCard({
                   type="button"
                   className="btn btn-primary"
                   onClick={() => onPublishAndPromote(group.id)}
-                  disabled={group.postStatus === "saving"}
+                  disabled={group.postStatus === "saving" || titleLen > TITLE_LIMIT}
                 >
                   {group.postStatus === "saving" && group.postMode === "promote" ? (
                     <>

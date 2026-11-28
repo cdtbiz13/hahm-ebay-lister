@@ -30,6 +30,26 @@ export async function resizeImage(file: File): Promise<ResizedImage> {
   };
 }
 
+// Small thumbnail for the intake list. It's stored in a Google Sheets cell,
+// which caps out at 50,000 characters, so step the size/quality down until it fits.
+export async function makeIntakeThumb(file: File, maxChars = 48_000): Promise<string> {
+  const bitmap = await loadBitmap(file);
+  try {
+    for (const [dim, q] of [
+      [260, 0.6],
+      [220, 0.5],
+      [180, 0.45],
+      [140, 0.4],
+    ] as const) {
+      const url = drawToJpeg(bitmap, dim, q);
+      if (url.length <= maxChars) return url;
+    }
+    return "";
+  } finally {
+    if ("close" in bitmap) bitmap.close();
+  }
+}
+
 function drawToJpeg(
   src: ImageBitmap | HTMLImageElement,
   maxDim: number,

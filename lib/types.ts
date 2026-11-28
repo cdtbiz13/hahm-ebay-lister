@@ -52,6 +52,8 @@ export interface AnalyzeRequestBody {
   // Optional model overrides; server falls back to its defaults when omitted.
   analysisModel?: string;
   routerModel?: string;
+  // Short ID line from intake ("Madewell Skinny Jeans Womens Dark Wash 30").
+  hint?: string;
 }
 
 export interface AnalyzeResponse {
@@ -126,4 +128,10 @@ export interface ItemGroup {
 
   // Notes from scheduling (e.g. item specifics to check in Seller Hub).
   scheduleNotes?: string[];
+
+  // Linked intake item (logged when bought). On schedule, its tracker row gets
+  // the SKU, final title and eBay price.
+  intakeTempId?: string;
+  intakeCost?: number;
+  intakeHint?: string;
 }

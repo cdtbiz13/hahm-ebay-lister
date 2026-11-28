@@ -117,6 +117,11 @@ export async function POST(req: NextRequest) {
   try {
     const profile = await routeProfile(client, imageBlocks, body.profile, routerModel);
     const systemPrompt = buildProfiledAnalysisPrompt(profile);
+    const hint =
+      typeof body.hint === "string" ? body.hint.replace(/\s+/g, " ").trim().slice(0, 200) : "";
+    const instruction = hint
+      ? `Analyze these photos and return the listing JSON now.\n\nSeller's note from when they bought this item (a quick guess from one photo): "${hint}". Use it only where these photos agree — the photos win.`
+      : "Analyze these photos and return the listing JSON now.";
 
     // Retry up to 3 times, mirroring the Python analyze_photos() loop.
     let lastErr: unknown = null;
@@ -139,10 +144,7 @@ export async function POST(req: NextRequest) {
               role: "user",
               content: [
                 ...imageBlocks,
-                {
-                  type: "text",
-                  text: "Analyze these photos and return the listing JSON now.",
-                },
+                { type: "text", text: instruction },
               ],
             },
           ],
