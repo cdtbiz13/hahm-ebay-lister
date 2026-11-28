@@ -577,6 +577,25 @@ export default function Home() {
       const group = groupsRef.current.find((g) => g.id === groupId);
       if (!group || !group.listing) return;
 
+      // Failsafe: never send a title over eBay's 80 characters (it would be
+      // cut off mid-word). Stop and let Boss shorten it himself.
+      const titleLen = (group.listing.title ?? "").length;
+      if (titleLen > 80) {
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.id === groupId
+              ? {
+                  ...g,
+                  postStatus: "error",
+                  postMode: mode,
+                  postError: `Title is ${titleLen} characters — eBay allows 80. Shorten it, then try again.`,
+                }
+              : g
+          )
+        );
+        return;
+      }
+
       const images = group.photoIds
         .map((id) => photoMap.get(id))
         .filter((p): p is Photo => Boolean(p))
