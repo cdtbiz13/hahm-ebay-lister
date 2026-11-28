@@ -127,8 +127,10 @@ export function storeMultiplier(n: number): void {
   }
 }
 
+// Sourcing finds are almost always used, so the sold-comps link is filtered to
+// Pre-owned (the tight string itself carries no condition word).
 export function soldCompsUrl(q: string): string {
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1`;
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`;
 }
 
 export function terapeakUrl(q: string): string {

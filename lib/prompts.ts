@@ -240,7 +240,7 @@ Write these sections in this order, separated by one blank line:
 Never include: the SKU, hashtags, keyword lists, ALL-CAPS hype, emojis, shipping/return/payment terms (eBay policies cover those), links, or any claim the photos can't back up.
 
 SEARCH STRING RULES (the seller's Rule Set A — never mix the two formats):
-• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" for new with tags, "New" for new without tags. Example: "Madewell High Rise Skinny Crop Jeans Womens 30 Pre-Owned".
+• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender. NO condition word (no Pre-Owned, Used, NWT, New) — the sold-search link already filters by condition. Example: "Madewell High Rise Skinny Crop Jeans Womens 30".
 • terapeak_search (broad, for Terapeak): Brand + Core Item + Size + Gender only. Do NOT include color, condition, minor collection/collab names, or other specific descriptors. Example: "FIGS Scrub Pants XS Womens".
 • Leave out size or gender if not visible or not applicable — never guess them.
 For condition: the seller lists every used item as Pre-owned – Good (GOOD). Use NEW_WITH_TAGS only when retail tags are attached; FAIR only for clear damage. Never EXCELLENT, VERY_GOOD, LIKE_NEW or NEW_NO_TAGS.
