@@ -24,7 +24,7 @@ ID LINE FORMAT: Brand + Item Type + Gender + Color + Size
 • Keep it under 60 characters. No condition words, no hype, no punctuation beyond what's needed.
 
 SEARCH STRINGS (the seller's Rule Set A — never mix the two):
-• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender + Condition. Condition is "Pre-Owned" for used items, "NWT" if retail tags are attached, "New" for new without tags.
+• sold_search (tight, for eBay sold listings): Brand + Model/Style + Item Type + Size + Gender. NO condition word (no Pre-Owned, Used, NWT, New) — the sold-search link already filters by condition.
 • terapeak_search (broad, for Terapeak): Brand + Core Item + Size + Gender only. No color, condition or minor descriptors.
 • Leave out size or gender if not visible or not applicable — never guess, and never put [SIZE] in a search string.
 

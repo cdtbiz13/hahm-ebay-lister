@@ -194,7 +194,7 @@ export default function SourcePage() {
             {readError && <p className="note note-error">{readError}</p>}
             <label className="field source-search">
               <span>Sold search</span>
-              <input value={found.soldSearch} placeholder="Brand item size gender Pre-Owned" onChange={(e) => setFound((f) => ({ ...f, soldSearch: e.target.value }))} />
+              <input value={found.soldSearch} placeholder="Brand item size gender" onChange={(e) => setFound((f) => ({ ...f, soldSearch: e.target.value }))} />
             </label>
             <label className="field source-search">
               <span>Terapeak search</span>
