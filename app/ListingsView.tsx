@@ -21,6 +21,7 @@ interface ListingsViewProps {
   onPost: (groupId: string) => void;
   onPublishAndPromote: (groupId: string) => void;
   onSchedule: (groupId: string) => void;
+  onReorderPhoto: (groupId: string, fromIndex: number, toIndex: number) => void;
   onPostAll: () => void;
   onBack: () => void;
 }
@@ -34,6 +35,7 @@ export function ListingsView({
   onPost,
   onPublishAndPromote,
   onSchedule,
+  onReorderPhoto,
   onPostAll,
   onBack,
 }: ListingsViewProps) {
@@ -142,6 +144,7 @@ export function ListingsView({
   onPost={onPost}
   onPublishAndPromote={onPublishAndPromote}
   onSchedule={onSchedule}
+  onReorderPhoto={onReorderPhoto}
 />
         ))}
       </div>

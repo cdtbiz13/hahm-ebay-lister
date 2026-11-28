@@ -1,5 +1,6 @@
 "use client";
 
+import { CardPhotoOrder } from "./CardPhotoOrder";
 import { useEffect, useMemo, useState } from "react";
 import { SIZE_REQUIRED_CATEGORIES } from "@/lib/categories";
 import {
@@ -95,6 +96,7 @@ interface ListingCardProps {
   onPost: (groupId: string) => void;
   onPublishAndPromote: (groupId: string) => void;
   onSchedule: (groupId: string) => void;
+  onReorderPhoto?: (groupId: string, fromIndex: number, toIndex: number) => void;
 }
 
 export function ListingCard({
@@ -106,6 +108,7 @@ export function ListingCard({
   onPost,
   onPublishAndPromote,
   onSchedule,
+  onReorderPhoto,
 }: ListingCardProps) {
   const [open, setOpen] = useState(true);
   const listing = group.listing;
@@ -196,6 +199,15 @@ export function ListingCard({
 
       {open && listing && group.status === "done" && (
         <div className="listing-card-body">
+          {onReorderPhoto &&
+            group.photoIds.length > 1 &&
+            !["scheduled", "published", "draft-saved", "saving"].includes(group.postStatus ?? "") && (
+              <CardPhotoOrder
+                photoIds={group.photoIds}
+                photoById={photoById}
+                onReorder={(from, to) => onReorderPhoto(group.id, from, to)}
+              />
+            )}
           <div className="result-field">
             <label>
               Title
