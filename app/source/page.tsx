@@ -127,7 +127,7 @@ export default function SourcePage() {
       ? "✅ Good buy"
       : check.verdict === "thin"
         ? `⚠️ Thin — covers your minimum, but under your ${mult}× rule`
-        : "❌ Pass — below your minimum price"
+        : "❌ Pass — a 10% offer or sale would put it under your minimum"
     : null;
 
   return (
@@ -235,7 +235,9 @@ export default function SourcePage() {
             <span>
               Profit {money(check.profit)} · <strong>Your pay {money(check.pay)}</strong> (55%) — after eBay fees, before shipping
             </span>
-            <span>Your minimum list price for this cost: {money(check.floor)}</span>
+            <span>
+              List at least {money(check.passLine)} so a 10% offer or sale still clears your minimum ({money(check.floor)}).
+            </span>
             <span>
               Most to pay at this list price: <strong>{money(check.maxShelf)}</strong>
               {!taxIncluded && rate > 0 && " tag price"}

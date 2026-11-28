@@ -67,9 +67,14 @@ export const PAYOUT_SHARE = 0.55;
 
 export type Verdict = "good" | "thin" | "pass";
 
+// Boss sends 10% offers and runs 10% sales, sometimes both at once.
+// Pass if one 10% discount would drop the sale under the minimum price.
+export const ONE_DISCOUNT = 0.9;
+
 export interface BuyCheck {
   cost: number; // what you'd pay, incl. tax
-  floor: number; // minimum list price for that cost
+  floor: number; // minimum sale price for that cost
+  passLine: number; // list price where a 10% discount still clears the minimum
   multiple: number; // list price ÷ cost
   profit: number; // after eBay fees, before shipping — the whole 100% before the split
   pay: number; // your 55% of that profit
@@ -92,14 +97,17 @@ export function checkBuy(
   // Highest cost that still passes both rules, converted back to a shelf price.
   const maxCost = Math.max(
     0,
-    Math.min((listPrice * EBAY_KEEP - ORDER_FEE) * REINVEST, listPrice / multiplier)
+    Math.min((listPrice * ONE_DISCOUNT * EBAY_KEEP - ORDER_FEE) * REINVEST, listPrice / multiplier)
   );
   const maxShelf = Math.floor((taxIncluded ? maxCost : maxCost / (1 + rate)) * 100) / 100;
   const pay = round2(Math.max(0, profit) * PAYOUT_SHARE);
-  // Below the minimum price → Pass. Covers the minimum but under the × rule
-  // → Thin (a warning — your call). Otherwise Good buy.
-  const verdict: Verdict = listPrice < floor ? "pass" : multiple < multiplier ? "thin" : "good";
-  return { cost, floor: round2(floor), multiple, profit, pay, maxShelf, verdict };
+  // Pass: a 10% offer or sale would sell it under the minimum.
+  // Thin: one discount is safe, but under the × rule (offer + sale stacked
+  //       could dip under the minimum) — a warning, your call.
+  // Good: at or above the × rule (3.5× ≈ safe even when both stack).
+  const passLine = floor / ONE_DISCOUNT;
+  const verdict: Verdict = listPrice < passLine ? "pass" : multiple < multiplier ? "thin" : "good";
+  return { cost, floor: round2(floor), passLine: round2(passLine), multiple, profit, pay, maxShelf, verdict };
 }
 
 const MULT_KEY = "sourcing:multiplier:v1";
