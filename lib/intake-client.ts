@@ -65,7 +65,7 @@ const REINVEST = 0.43;
 // 15% extra reinvest / 5% buffer. "Your pay" is the 55%.
 export const PAYOUT_SHARE = 0.55;
 
-export type Verdict = "good" | "lowpay" | "thin" | "pass";
+export type Verdict = "good" | "thin" | "pass";
 
 export interface BuyCheck {
   cost: number; // what you'd pay, incl. tax
@@ -82,8 +82,7 @@ export function checkBuy(
   shelf: number,
   rate: number,
   taxIncluded: boolean,
-  multiplier: number,
-  minPay = 0
+  multiplier: number
 ): BuyCheck | null {
   const cost = costWithTax(shelf, rate, taxIncluded);
   if (!(listPrice > 0) || !Number.isFinite(cost)) return null;
@@ -97,8 +96,9 @@ export function checkBuy(
   );
   const maxShelf = Math.floor((taxIncluded ? maxCost : maxCost / (1 + rate)) * 100) / 100;
   const pay = round2(Math.max(0, profit) * PAYOUT_SHARE);
-  const verdict: Verdict =
-    listPrice < floor ? "pass" : multiple < multiplier ? "thin" : pay < minPay ? "lowpay" : "good";
+  // Below the minimum price → Pass. Covers the minimum but under the × rule
+  // → Thin (a warning — your call). Otherwise Good buy.
+  const verdict: Verdict = listPrice < floor ? "pass" : multiple < multiplier ? "thin" : "good";
   return { cost, floor: round2(floor), multiple, profit, pay, maxShelf, verdict };
 }
 
@@ -114,24 +114,6 @@ export function loadMultiplier(): number {
 export function storeMultiplier(n: number): void {
   try {
     window.localStorage.setItem(MULT_KEY, String(n));
-  } catch {
-    /* ignore */
-  }
-}
-
-const MINPAY_KEY = "sourcing:minpay:v1";
-export function loadMinPay(): number {
-  try {
-    const raw = window.localStorage.getItem(MINPAY_KEY);
-    const n = raw === null ? NaN : parseFloat(raw);
-    return n >= 0 && n <= 500 ? n : 5;
-  } catch {
-    return 5;
-  }
-}
-export function storeMinPay(n: number): void {
-  try {
-    window.localStorage.setItem(MINPAY_KEY, String(n));
   } catch {
     /* ignore */
   }
