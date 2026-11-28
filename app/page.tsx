@@ -1087,6 +1087,7 @@ export default function Home() {
           onPostAll={postAll}
           onPublishAndPromote={publishAndPromoteGroup}
           onSchedule={scheduleGroup}
+          onReorderPhoto={reorderPhoto}
           onBack={() => setStep("review")}
         />
       )}
