@@ -10,7 +10,7 @@ import {
   recentMiles,
   saveTrip,
 } from "@/lib/expenses";
-import { isIsoDate } from "@/lib/intake";
+import { isIsoDate, keptOwed, markKeptPaid } from "@/lib/intake";
 import { intakeError } from "@/lib/intake-route";
 
 export const maxDuration = 60;
@@ -44,13 +44,14 @@ export async function POST(req: NextRequest) {
   try {
     switch (b.action) {
       case "load": {
-        const [types, trips, expenses, miles] = await Promise.all([
+        const [types, trips, expenses, miles, kept] = await Promise.all([
           expenseTypes(),
           listTrips(),
           recentExpenses(),
           recentMiles(),
+          keptOwed(),
         ]);
-        return NextResponse.json({ ok: true, types, trips, expenses, miles });
+        return NextResponse.json({ ok: true, types, trips, expenses, miles, kept });
       }
 
       case "addExpense": {
@@ -73,6 +74,11 @@ export async function POST(req: NextRequest) {
         const row = await addMiles({ date: b.date, description, purpose, miles });
         if (b.saveAsTrip) await saveTrip({ name: description, miles, purpose });
         return NextResponse.json({ ok: true, row });
+      }
+
+      case "markKeptPaid": {
+        const result = await markKeptPaid();
+        return NextResponse.json({ ok: true, ...result });
       }
 
       case "deleteTrip": {

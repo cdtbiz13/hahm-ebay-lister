@@ -16,6 +16,13 @@ interface ExpenseRow {
   amount: number;
   date: string;
 }
+interface KeptItem {
+  row: number;
+  id: string;
+  description: string;
+  cost: number;
+  date: string;
+}
 interface MilesRow {
   date: string;
   description: string;
@@ -39,6 +46,9 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [miles, setMiles] = useState<MilesRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [kept, setKept] = useState<{ items: KeptItem[]; total: number }>({ items: [], total: 0 });
+  const [kBusy, setKBusy] = useState(false);
+  const [kNote, setKNote] = useState<string | null>(null);
 
   // Expense form
   const [eDate, setEDate] = useState("");
@@ -65,6 +75,7 @@ export default function ExpensesPage() {
       setTrips(d.trips);
       setExpenses(d.expenses);
       setMiles(d.miles);
+      setKept(d.kept ?? { items: [], total: 0 });
     } catch (e) {
       setLoadError((e as Error).message);
     }
@@ -115,6 +126,21 @@ export default function ExpensesPage() {
       setMNote({ ok: false, msg: (e as Error).message });
     } finally {
       setMBusy(false);
+    }
+  };
+
+  const markPaid = async () => {
+    if (!window.confirm(`Mark ${kept.items.length} kept item(s) as paid ($${kept.total.toFixed(2)})? Only do this after the transfer.`)) return;
+    setKBusy(true);
+    setKNote(null);
+    try {
+      const d = await call({ action: "markKeptPaid" });
+      setKNote(`Marked ${d.count} item(s) paid — $${Number(d.total).toFixed(2)}.`);
+      void load();
+    } catch (e) {
+      setKNote((e as Error).message);
+    } finally {
+      setKBusy(false);
     }
   };
 
@@ -213,6 +239,37 @@ export default function ExpensesPage() {
             </ul>
           </details>
         )}
+      </section>
+
+      <section className="panel">
+        <h2 className="section-label">🏠 Kept items</h2>
+        <p className="kept-total">
+          Transfer to resale account: <strong>{money(kept.total)}</strong>
+        </p>
+        {kept.items.length > 0 ? (
+          <>
+            <ul className="kept-list">
+              {kept.items.map((k) => (
+                <li key={k.row}>
+                  <span>
+                    {k.id && <strong>{k.id}</strong>} {k.description}
+                    {k.date && <span className="post-hint"> · kept {k.date}</span>}
+                  </span>
+                  <span>{money(k.cost)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="result-actions">
+              <span className="post-hint">Move this from main checking to the resale account, then tap:</span>
+              <button type="button" className="btn btn-primary" disabled={kBusy} onClick={() => void markPaid()}>
+                {kBusy ? "Saving…" : "I transferred it"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="post-hint">Nothing owed. Items you mark Kept in Intake show up here.</p>
+        )}
+        {kNote && <p className="note">{kNote}</p>}
       </section>
 
       <section className="panel">

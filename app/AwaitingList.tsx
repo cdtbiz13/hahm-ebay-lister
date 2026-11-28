@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiPost } from "@/lib/api-client";
 import { floorFor, soldCompsUrl, terapeakUrl, type AwaitingItem } from "@/lib/intake-client";
 
-const REASONS = ["Donated", "Damaged", "Keeping", "Other"] as const;
+const REASONS = ["Donated", "Damaged", "Kept"] as const;
 
 const money = (n: number) => (Number.isFinite(n) ? `$${n.toFixed(2)}` : "—");
 
@@ -130,9 +130,9 @@ export function AwaitingList({
                       onChange={(e) => {
                         const reason = e.target.value;
                         if (reason && window.confirm(
-                          reason === "Donated" || reason === "Damaged"
-                            ? `Remove ${it.tempId} as ${reason}? Its tracker row is set to Donate with $0 sold.`
-                            : `Remove ${it.tempId} (${reason})? It leaves this list; its tracker row is not changed.`
+                          reason === "Kept"
+                            ? `Mark ${it.tempId} as Kept? Its $${it.cost.toFixed(2)} cost is added to what you owe the resale account.`
+                            : `Remove ${it.tempId} as ${reason}? Its tracker row is set to Donate with $0 sold.`
                         )) {
                           void remove(it.tempId, reason);
                         }

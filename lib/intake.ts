@@ -44,7 +44,9 @@ export const MAX_THUMB_CHARS = 48_000;
 export const STATUS_AWAITING = "In Process";
 export const STATUS_LISTED = "Active";
 export const STATUS_DONATE = "Donate";
-export const REMOVE_REASONS = ["Donated", "Damaged", "Keeping", "Other"] as const;
+export const STATUS_KEPT = "Kept"; // kept for personal use — owed back to the business
+export const STATUS_KEPT_PAID = "Kept - Paid"; // ...and paid back
+export const REMOVE_REASONS = ["Donated", "Damaged", "Kept"] as const;
 export type RemoveReason = (typeof REMOVE_REASONS)[number];
 
 export interface IntakeItemInput {
@@ -268,14 +270,64 @@ export async function linkIntake(
 export async function removeIntake(tempId: string, reason: RemoveReason): Promise<void> {
   const tab = trackerTab();
   const row = await findTrackerRow(tempId);
-  // Donated and Damaged are written off the tracker's way: status Donate,
+  // Donated / Damaged: written off the tracker's way — status Donate,
   // "Amount Sold For (if donated put 0)" = 0, and today's date.
-  // Keeping / Other only leave the app's list; the tracker row is untouched.
-  if (row && (reason === "Donated" || reason === "Damaged")) {
-    await batchUpdateValues([
-      { range: a1(tab, `L${row}`), values: [[STATUS_DONATE]] },
-      { range: a1(tab, `J${row}:K${row}`), values: [[0, usDate(todayCentralIso())]] },
-    ]);
+  // Kept: status Kept + today's date; its cost shows in "Kept - transfer to
+  // resale" at the top of the tab until it's marked paid.
+  if (row) {
+    const date = usDate(todayCentralIso());
+    await batchUpdateValues(
+      reason === "Kept"
+        ? [
+            { range: a1(tab, `K${row}`), values: [[date]] },
+            { range: a1(tab, `L${row}`), values: [[STATUS_KEPT]] },
+          ]
+        : [
+            { range: a1(tab, `J${row}:K${row}`), values: [[0, date]] },
+            { range: a1(tab, `L${row}`), values: [[STATUS_DONATE]] },
+          ]
+    );
   }
   await closeIntakeRow(tempId, `removed: ${reason}`);
+}
+
+// ── Kept items (owed back to the resale account) ────────────────────────────
+
+export interface KeptItem {
+  row: number;
+  id: string;
+  description: string;
+  cost: number;
+  date: string;
+}
+
+async function keptRows(): Promise<KeptItem[]> {
+  const tab = trackerTab();
+  const rows = await getValues(a1(tab, `A${TRACKER_FIRST_ROW + 1}:L${MAX_TRACKER_ROW}`));
+  const out: KeptItem[] = [];
+  rows.forEach((r, i) => {
+    if ((r[11] ?? "").trim() === STATUS_KEPT) {
+      out.push({
+        row: TRACKER_FIRST_ROW + 1 + i,
+        id: r[0] ?? "",
+        description: r[1] ?? "",
+        cost: parseMoney(r[7]),
+        date: r[10] ?? "",
+      });
+    }
+  });
+  return out;
+}
+
+export async function keptOwed(): Promise<{ items: KeptItem[]; total: number }> {
+  const items = await keptRows();
+  return { items, total: Math.round(items.reduce((s, k) => s + k.cost, 0) * 100) / 100 };
+}
+
+/** After the transfer: mark every currently-Kept row as Kept - Paid. */
+export async function markKeptPaid(): Promise<{ count: number; total: number }> {
+  const tab = trackerTab();
+  const { items, total } = await keptOwed();
+  await batchUpdateValues(items.map((k) => ({ range: a1(tab, `L${k.row}`), values: [[STATUS_KEPT_PAID]] })));
+  return { count: items.length, total };
 }
