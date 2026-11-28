@@ -44,6 +44,7 @@ export const MAX_THUMB_CHARS = 48_000;
 export const STATUS_AWAITING = "In Process";
 export const STATUS_LISTED = "Active";
 export const STATUS_DONATE = "Donate";
+export const STATUS_DAMAGED = "Damaged";
 export const STATUS_KEPT = "Kept"; // kept for personal use — owed back to the business
 export const STATUS_KEPT_PAID = "Kept - Paid"; // ...and paid back
 export const REMOVE_REASONS = ["Donated", "Damaged", "Kept"] as const;
@@ -270,8 +271,8 @@ export async function linkIntake(
 export async function removeIntake(tempId: string, reason: RemoveReason): Promise<void> {
   const tab = trackerTab();
   const row = await findTrackerRow(tempId);
-  // Donated / Damaged: written off the tracker's way — status Donate,
-  // "Amount Sold For (if donated put 0)" = 0, and today's date.
+  // Donated / Damaged: written off the tracker's way — status Donate or
+  // Damaged, "Amount Sold For (if donated put 0)" = 0, and today's date.
   // Kept: status Kept + today's date; its cost shows in "Kept - transfer to
   // resale" at the top of the tab until it's marked paid.
   if (row) {
@@ -284,7 +285,7 @@ export async function removeIntake(tempId: string, reason: RemoveReason): Promis
           ]
         : [
             { range: a1(tab, `J${row}:K${row}`), values: [[0, date]] },
-            { range: a1(tab, `L${row}`), values: [[STATUS_DONATE]] },
+            { range: a1(tab, `L${row}`), values: [[reason === "Damaged" ? STATUS_DAMAGED : STATUS_DONATE]] },
           ]
     );
   }

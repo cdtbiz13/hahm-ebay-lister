@@ -132,7 +132,7 @@ export function AwaitingList({
                         if (reason && window.confirm(
                           reason === "Kept"
                             ? `Mark ${it.tempId} as Kept? Its $${it.cost.toFixed(2)} cost is added to what you owe the resale account.`
-                            : `Remove ${it.tempId} as ${reason}? Its tracker row is set to Donate with $0 sold.`
+                            : `Remove ${it.tempId} as ${reason}? Its tracker row is set to ${reason === "Damaged" ? "Damaged" : "Donate"} with $0 sold.`
                         )) {
                           void remove(it.tempId, reason);
                         }
